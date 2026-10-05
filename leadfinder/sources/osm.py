@@ -36,25 +36,56 @@ def _category_for(tags: dict, categories: list[str]) -> str | None:
     return None
 
 
-def fetch(bbox, categories: list[str], country: str, city: str) -> list[dict]:
-    query = _query(bbox, categories)
-    data = None
+TILE = 0.2  # degrees; big cities are asked for in squares this size so the free servers don't time out
+
+
+def _tiles(bbox):
+    s, w, n, e = bbox
+    lat = s
+    while lat < n:
+        lon = w
+        while lon < e:
+            yield (lat, lon, min(lat + TILE, n), min(lon + TILE, e))
+            lon += TILE
+        lat += TILE
+
+
+def _ask(query: str) -> list | None:
     for url in ENDPOINTS:
         try:
-            r = httpx.post(url, data={"data": query}, headers=UA, timeout=110)
+            r = httpx.post(url, data={"data": query}, headers=UA, timeout=100)
             if r.status_code == 200:
-                data = r.json()
-                break
-            log.warning("Overpass %s answered %s", url, r.status_code)
+                return r.json().get("elements", [])
+            log.info("Overpass %s answered %s", url, r.status_code)
         except Exception as e:
-            log.warning("Overpass %s failed: %s", url, e)
+            log.info("Overpass %s failed: %s", url, e)
         time.sleep(3)
-    if data is None:
-        log.warning("OpenStreetMap unavailable right now, continuing with Overture only")
-        return []
+    return None
+
+
+def fetch(bbox, categories: list[str], country: str, city: str, budget_s: float = 240) -> list[dict]:
+    elements, failed, seen = [], 0, set()
+    tiles = list(_tiles(bbox))
+    stop_at = time.monotonic() + budget_s
+    for tile in tiles:
+        if time.monotonic() > stop_at:
+            failed += 1
+            continue
+        got = _ask(_query(tile, categories))
+        if got is None:
+            failed += 1
+            if failed >= 3 and not elements:  # nothing has worked: the servers are down
+                break
+            continue
+        for el in got:
+            if (el["type"], el["id"]) not in seen:
+                seen.add((el["type"], el["id"]))
+                elements.append(el)
+    if failed:
+        log.warning("OpenStreetMap: %d of %d map squares unavailable", failed, len(tiles))
 
     out = []
-    for el in data.get("elements", []):
+    for el in elements:
         tags = el.get("tags", {})
         if tags.get("brand") or tags.get("brand:wikidata") or tags.get("disused:shop"):
             continue

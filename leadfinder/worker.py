@@ -19,11 +19,12 @@ def find_leads(db: DB, job: dict) -> tuple[int, int, str]:
     log.info("Job %s: %s, %s - %s", job["id"], city, country, category)
     bbox = geo.city_bbox(city, country)
     found = overture.fetch(bbox, categories, country, city)
-    try:
-        extra = osm.fetch(bbox, categories, country, city)
-    except Exception as e:
-        log.warning("OpenStreetMap step failed: %s", e)
-        extra = []
+    extra = []
+    if country != "IN":  # in India OpenStreetMap adds very few phone numbers; abroad it's strong
+        try:
+            extra = osm.fetch(bbox, categories, country, city)
+        except Exception as e:
+            log.warning("OpenStreetMap step failed: %s", e)
     leads = merge(found, extra)
     res = db.upsert_leads(leads)
     p1 = sum(1 for l in leads if l["priority"] == 1)
