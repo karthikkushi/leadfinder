@@ -79,6 +79,8 @@
     if (!silent) location.reload();
   }
 
+  window.addEventListener("hashchange", () => { if (location.hash.includes("code=")) start(); });
+
   $("#login-form").addEventListener("submit", (e) => {
     e.preventDefault();
     store.set("lf_code", $("#code-input").value.trim());
@@ -197,6 +199,16 @@
     }
   }
 
+  const SPOKEN = {
+    dentist: "dentists", dermatologist: "skin clinics", physio: "physiotherapists", eye_clinic: "eye clinics and opticians",
+    vet: "vets", pet_shop: "pet shops", clinic: "clinics", pharmacy: "medical stores", clothing: "clothing shops",
+    jewellery: "jewellery shops", footwear: "footwear shops", mobile_electronics: "mobile and electronics shops",
+    furniture_home: "furniture and home decor shops", hardware: "hardware shops", grocery: "grocery stores",
+    bakery_sweets: "bakeries and sweet shops", gifts_books: "gift shops", sports: "sports shops", auto_parts: "auto parts shops",
+    salon_beauty: "salons", gym_fitness: "gyms", restaurant_cafe: "restaurants and cafes", tuition: "classes and tuition centres",
+    events_photo: "event services", laundry: "laundry services", general_shop: "shops",
+  };
+
   const PLAIN = [
     [/^Not mobile-friendly/, "it doesn't fit a phone screen"],
     [/^No HTTPS/, "browsers mark it 'Not secure'"],
@@ -220,13 +232,13 @@
     const who = store.get("lf_name") || "[your name]";
     const co = store.get("lf_company") || "[your company]";
     const price = store.get("lf_price");
-    const type = (CAT[l.category] || "shops").toLowerCase();
+    const type = SPOKEN[l.category] || "shops like yours";
     const area = l.locality && l.locality !== l.city ? l.locality : l.city;
     const intro = `Hello, am I speaking with ${l.name}? This is ${who} from ${co}.`;
     let body;
     if (l.priority === 1 && l.website_status !== "dead") {
       const s = socialNames(l);
-      const only = l.website_status === "social_only" && s.length ? ` - only your ${s.join(" and ")} page` : "";
+      const only = l.website_status === "social_only" && s.length ? ` - only your ${s.join(" and ")} page${s.length > 1 ? "s" : ""}` : "";
       body = `I was looking for ${type} in ${area} online and couldn't find a website for ${l.name}${only}. ` +
         `Most customers search on Google before they visit, and they choose the shops they can see.\n\n` +
         `We make simple, fast websites for local businesses: your photos, timings, location, and Call and WhatsApp buttons${price ? ` - ${price}` : ""}. ` +
