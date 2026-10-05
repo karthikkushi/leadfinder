@@ -133,7 +133,8 @@ def send_morning_email(since_hours: float = 4, dry_run: bool = False):
     db = DB()
     since = (datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(hours=since_hours)).isoformat()
     limit = int(os.environ.get("REPORT_LEADS", "60"))
-    data = db.report(since, limit, mark=False)
+    countries = [c.strip().upper() for c in os.environ.get("REPORT_COUNTRIES", "IN").split(",") if c.strip()] or None
+    data = db.report(since, limit, mark=False, countries=countries)
     subject, body = build(data, os.environ.get("APP_URL"))
     attachment = _csv(data["leads"])
     out = ROOT / "logs"

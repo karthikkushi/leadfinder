@@ -1,6 +1,8 @@
 """Coordinator: takes search jobs from the database queue, runs the finder agents, then keeps the website
 checker busy. Everything is saved as it goes, so a stopped run just carries on next time."""
+import itertools
 import logging
+import os
 import time
 from concurrent.futures import ThreadPoolExecutor
 
@@ -42,9 +44,16 @@ def _safe_check(lead, searcher):
         return None
 
 
+# Which country each round of checks works on, e.g. "IN,IN,US" = two rounds India, one round USA.
+CHECK_MIX = itertools.cycle([c.strip().upper() for c in os.environ.get("CHECK_MIX", "IN,IN,US").split(",") if c.strip()])
+
+
 def check_some(db: DB, searcher: verify.Searcher, deadline: float) -> int:
-    no_site = db.next_checks(12, 1)    # needs web searches: done one by one
-    has_site = db.next_checks(32, 2)   # just opens the website: done in parallel
+    country = next(CHECK_MIX)
+    no_site = db.next_checks(12, 1, country)    # needs web searches: done one by one
+    has_site = db.next_checks(32, 2, country)   # just opens the website: done in parallel
+    if not no_site and not has_site:  # nothing left for that country: take any
+        no_site, has_site = db.next_checks(12, 1), db.next_checks(32, 2)
     if not no_site and not has_site:
         return 0
     results = []

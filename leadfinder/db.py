@@ -42,8 +42,8 @@ class DB:
             totals["updated"] += res["updated"]
         return totals
 
-    def next_checks(self, limit: int, priority: int) -> list[dict]:
-        return self.call("worker_next_checks", p_limit=limit, p_priority=priority) or []
+    def next_checks(self, limit: int, priority: int, country: str | None = None) -> list[dict]:
+        return self.call("worker_next_checks", p_limit=limit, p_priority=priority, p_country=country) or []
 
     def save_checks(self, rows: list[dict]):
         if rows:
@@ -53,5 +53,5 @@ class DB:
         return self.call("worker_plan", p_targets=[{"country": c, "city": t} for c, t in targets], p_days=days,
                          p_backlog=backlog)
 
-    def report(self, since: str, limit: int, mark: bool = True) -> dict:
-        return self.call("worker_report", p_since=since, p_limit=limit, p_mark=mark)
+    def report(self, since: str, limit: int, mark: bool = True, countries: list[str] | None = None) -> dict:
+        return self.call("worker_report", p_since=since, p_limit=limit, p_mark=mark, p_countries=countries)

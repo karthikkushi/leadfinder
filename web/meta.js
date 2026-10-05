@@ -102,6 +102,10 @@ window.LF_META = {
    "label": "Laundry & dry cleaning"
   },
   {
+   "key": "home_services",
+   "label": "Plumbers, electricians & home services"
+  },
+  {
    "key": "general_shop",
    "label": "Other shops"
   }

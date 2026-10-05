@@ -99,13 +99,28 @@
     return s;
   }
 
-  async function loadOptions() {
-    const o = await rpc("app_options");
+  let options = { places: [], categories: [] };
+
+  function fillPlaces() {
+    const country = $("#f-country").value;
     const place = $("#f-place");
     const keep = place.value;
-    place.innerHTML = `<option value="">All cities</option>` + o.places.map((p) =>
-      `<option value="${esc(p.country)}|${esc(p.city)}">${esc(p.city)}${p.country !== "IN" ? ", " + esc(COUNTRY[p.country]?.name || p.country) : ""} (${p.n})</option>`).join("");
-    place.value = keep;
+    place.innerHTML = `<option value="">All cities</option>` + options.places
+      .filter((p) => !country || p.country === country)
+      .map((p) => `<option value="${esc(p.country)}|${esc(p.city)}">${esc(p.city)} (${p.n})</option>`).join("");
+    place.value = [...place.options].some((o) => o.value === keep) ? keep : "";
+  }
+
+  async function loadOptions() {
+    const o = await rpc("app_options");
+    options = o;
+    const countries = [...new Set(o.places.map((p) => p.country))];
+    if (!countries.includes("IN")) countries.unshift("IN");
+    const saved = store.get("lf_country", "IN");
+    $("#f-country").innerHTML = countries.map((c) => `<option value="${c}">${esc(COUNTRY[c]?.name || c)}</option>`).join("") +
+      `<option value="">All countries</option>`;
+    $("#f-country").value = countries.includes(saved) || saved === "" ? saved : "IN";
+    fillPlaces();
     const cat = $("#f-category");
     const keepCat = cat.value;
     cat.innerHTML = `<option value="">All shop types</option>` + META.categories
@@ -126,6 +141,7 @@
   }
   $("#q-country").addEventListener("change", fillCities);
 
+  $("#f-country").addEventListener("change", () => { store.set("lf_country", $("#f-country").value); fillPlaces(); loadLeads(true); });
   ["#f-place", "#f-category", "#f-priority"].forEach((s) => $(s).addEventListener("change", () => loadLeads(true)));
   let searchTimer;
   $("#f-search").addEventListener("input", () => { clearTimeout(searchTimer); searchTimer = setTimeout(() => loadLeads(true), 350); });
@@ -147,7 +163,8 @@
   // ---------- leads ----------
   async function loadLeads(reset) {
     if (reset) { offset = 0; leads = []; }
-    const [country, city] = ($("#f-place").value || "|").split("|");
+    const [placeCountry, city] = ($("#f-place").value || "|").split("|");
+    const country = placeCountry || $("#f-country").value;
     const list = $("#lead-list");
     if (reset) list.innerHTML = `<div class="empty">Loading…</div>`;
     let rows;
@@ -207,6 +224,7 @@
     bakery_sweets: "bakeries and sweet shops", gifts_books: "gift shops", sports: "sports shops", auto_parts: "auto parts shops",
     salon_beauty: "salons", gym_fitness: "gyms", restaurant_cafe: "restaurants and cafes", tuition: "classes and tuition centres",
     events_photo: "event services", laundry: "laundry services", general_shop: "shops",
+    home_services: "plumbers, electricians and home services",
   };
 
   const PLAIN = [

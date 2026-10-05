@@ -8,6 +8,9 @@ on:
       minutes:
         description: "How long the agents work (minutes)"
         default: "170"
+      send_email:
+        description: "Send the lead email at the end (yes/no)"
+        default: "yes"
 
 concurrency:
   group: leadfinder
@@ -31,6 +34,8 @@ jobs:
       REPORT_TO: ${{ secrets.REPORT_TO }}
       APP_URL: ${{ secrets.APP_URL }}
       REPORT_LEADS: "60"
+      REPORT_COUNTRIES: "IN"     # the morning email is India-only for now; add US when calling the USA
+      CHECK_MIX: "IN,IN,US"      # two rounds of India checks for every round of US checks
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v6
@@ -39,7 +44,7 @@ jobs:
       - name: Find and check leads (about 3 hours)
         run: .venv/bin/python -m leadfinder worker --plan --minutes ${{ inputs.minutes || '170' }}
       - name: Email today's leads
-        if: always()
+        if: ${{ always() && (github.event_name == 'schedule' || inputs.send_email != 'no') }}
         run: .venv/bin/python -m leadfinder email --since-hours 4
       - name: Keep the daily schedule switched on
         # GitHub pauses schedules in repos with no activity for 60 days; this resets that timer.

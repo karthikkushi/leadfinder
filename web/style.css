@@ -78,7 +78,7 @@ h2 { font-size: 17px; margin: 0 0 6px; }
 body:not(.is-admin) .admin-only { display: none; }
 
 .filters { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 12px; }
-.filters input, .filters #f-priority { grid-column: 1 / -1; }
+.filters input { grid-column: 1 / -1; }
 select, input, textarea {
   width: 100%; font: inherit; font-size: 15px; color: var(--text); background: var(--surface);
   border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; min-height: 42px;
