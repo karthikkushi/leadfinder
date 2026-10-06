@@ -109,8 +109,8 @@ def compute_city(db: DB, country: str, city: str) -> int:
                 "has_instagram": any("instagram.com" in (s or "") for s in l.get("socials") or []),
                 "branches": names.get(name_key(l["name"]), 1),
             })
-        for i in range(0, len(out), 1000):
-            db.call("worker_save_features", p_rows=out[i:i + 1000])
+        for i in range(0, len(out), 250):  # small batches: each database request must finish within 3 s
+            db.call("worker_save_features", p_rows=out[i:i + 250])
         done += len(out)
         log.info("%s: scored %d leads", city, done)
     return done

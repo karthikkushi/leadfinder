@@ -36,8 +36,8 @@ class DB:
     def upsert_leads(self, rows: list[dict]) -> dict:
         totals = {"inserted": 0, "updated": 0}
         clean = [{k: v for k, v in r.items() if not k.startswith("_")} for r in rows]
-        for i in range(0, len(clean), 400):
-            res = self.call("worker_upsert_leads", p_rows=clean[i:i + 400])
+        for i in range(0, len(clean), 200):  # small batches: each database request must finish within 3 s
+            res = self.call("worker_upsert_leads", p_rows=clean[i:i + 200])
             totals["inserted"] += res["inserted"]
             totals["updated"] += res["updated"]
         return totals

@@ -81,7 +81,13 @@ def run(minutes: float, wait: bool = False, plan: bool = False):
     deadline = time.monotonic() + minutes * 60
     log.info("Agents started for up to %.0f minutes%s", minutes, " (waiting for new jobs when idle)" if wait else "")
     learned = db.call("worker_refresh_learning")
-    log.info("Learning from calls: %s shop types updated", learned.get("categories"))
+    rescored = 0
+    for _ in range(100):  # re-score shops whose type's learned adjustment changed, a batch at a time
+        n = db.call("worker_rescore_some", p_limit=1500) or 0
+        rescored += n
+        if not n:
+            break
+    log.info("Learning from calls: %s shop types updated, %d shops re-scored", learned.get("categories"), rescored)
     try:
         features.compute_missing(db)  # any shops that haven't been scored yet
     except Exception:
