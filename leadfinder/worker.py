@@ -112,4 +112,5 @@ def run(minutes: float, wait: bool = False, plan: bool = False):
             log.info("Nothing left to do")
             break
         time.sleep(60)
+    db.call("worker_refresh_summary")  # the app's counters
     log.info("Agents stopped")

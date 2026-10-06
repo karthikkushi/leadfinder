@@ -3,10 +3,10 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#0f172a">
+  <meta name="theme-color" content="#0b1020">
   <meta name="robots" content="noindex, nofollow">
   <title>Lead Finder</title>
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%231d4ed8'/><path d='M9 22l5-12 4 8 2-4 3 8' stroke='white' stroke-width='2.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/></svg>">
+  <link rel="icon" href="icon-192.png">
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="apple-touch-icon" href="apple-touch-icon.png">
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -17,129 +17,62 @@
 <body>
   <div id="login" class="login" hidden>
     <div class="login-card">
-      <div class="brand"><span class="logo"></span>Lead Finder</div>
-      <p class="muted">Enter your access code. Ask the owner for your link if you don't have one.</p>
+      <img src="icon-192.png" alt="" width="56" height="56" class="login-logo">
+      <h1>Lead Finder</h1>
+      <p class="muted">Paste your access code or the login link you were sent.</p>
       <form id="login-form">
-        <input id="code-input" type="password" autocomplete="current-password" placeholder="Access code or your login link" required>
-        <button class="btn primary" type="submit">Open</button>
+        <label class="sr-only" for="code-input">Access code</label>
+        <input id="code-input" type="password" autocomplete="current-password" placeholder="Access code or login link" required>
+        <button class="btn primary wide" type="submit">Open</button>
       </form>
       <p id="login-error" class="error" hidden></p>
     </div>
   </div>
 
   <div id="app" hidden>
-    <header class="top">
-      <div class="brand"><span class="logo"></span>Lead Finder</div>
-      <button id="settings-btn" class="icon-btn" aria-label="Settings">
-        <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>
-      </button>
+    <header class="topbar">
+      <div class="brand"><img src="icon-192.png" alt="" width="30" height="30">Lead Finder</div>
+      <div class="top-actions">
+        <label class="sr-only" for="country">Country</label>
+        <select id="country" class="country-select"></select>
+        <button id="settings-btn" class="icon-btn" aria-label="Settings"></button>
+      </div>
     </header>
 
     <div id="install" class="install" hidden>
-      <img src="icon-192.png" alt="" width="36" height="36">
+      <img src="icon-192.png" alt="" width="34" height="34">
       <span id="install-text">Add Lead Finder to your home screen</span>
-      <button id="install-btn" class="btn primary">Install</button>
-      <button id="install-close" class="icon-btn" aria-label="Hide">✕</button>
+      <button id="install-btn" class="btn primary small">Install</button>
+      <button id="install-close" class="icon-btn" aria-label="Hide"></button>
     </div>
 
-    <section class="stats" id="stats"></section>
+    <main id="view" class="view" aria-live="polite"></main>
 
-    <nav class="tabs" id="tabs">
-      <button data-view="to_call" class="active">To call</button>
-      <button data-view="callbacks">Callbacks</button>
-      <button data-view="interested">Interested</button>
-      <button data-view="won">Won</button>
-      <button data-view="done">Done</button>
-      <button data-view="admin" class="admin-only">Find leads</button>
-      <button data-view="team" class="admin-only">Team</button>
+    <nav class="tabbar" id="tabbar" aria-label="Sections">
+      <button data-tab="today" class="active"><span class="ti" data-icon="flame"></span><span>Today</span></button>
+      <button data-tab="all"><span class="ti" data-icon="list"></span><span>All leads</span></button>
+      <button data-tab="callbacks"><span class="ti" data-icon="clock"></span><span>Callbacks</span><b class="badge" id="cb-badge" hidden></b></button>
+      <button data-tab="results"><span class="ti" data-icon="trophy"></span><span>Results</span></button>
+      <button data-tab="more"><span class="ti" data-icon="dots"></span><span>More</span></button>
     </nav>
-
-    <section id="leads-view">
-      <div class="filters">
-        <select id="f-country" aria-label="Country"><option value="IN">India</option></select>
-        <select id="f-place" aria-label="City"><option value="">All cities</option></select>
-        <select id="f-category" aria-label="Shop type"><option value="">All shop types</option></select>
-        <select id="f-priority" aria-label="Website">
-          <option value="">No website + needs work</option>
-          <option value="1">No website only</option>
-          <option value="2">Website needs work</option>
-        </select>
-        <input id="f-search" type="search" placeholder="Search name, area, phone">
-      </div>
-      <div id="lead-list" class="lead-list"></div>
-      <button id="more-btn" class="btn ghost wide" hidden>Show more</button>
-    </section>
-
-    <section id="admin-view" hidden>
-      <div class="panel">
-        <h2>Search a city</h2>
-        <p class="muted">The agents scan the whole city and check each shop's website. New searches start with the next run (6:00 AM every day), or press <b>Run Agents Now</b> on the Mac.</p>
-        <form id="queue-form" class="stack">
-          <select id="q-country" required></select>
-          <input id="q-city" list="city-list" placeholder="City, e.g. Bengaluru" required>
-          <datalist id="city-list"></datalist>
-          <select id="q-category"><option value="all">All shop types</option></select>
-          <button class="btn primary" type="submit">Add search</button>
-        </form>
-        <p id="queue-msg" class="muted" hidden></p>
-      </div>
-      <div class="panel">
-        <h2>Cities</h2>
-        <div id="places" class="table-wrap"></div>
-      </div>
-      <div class="panel">
-        <h2>Searches</h2>
-        <div id="jobs" class="jobs"></div>
-      </div>
-    </section>
-
-    <section id="team-view" hidden>
-      <div class="panel">
-        <h2>Add a caller</h2>
-        <p class="muted">Creates a personal login link. Send it to them on WhatsApp; they just open it.</p>
-        <form id="member-form" class="stack">
-          <input id="m-name" placeholder="Their name" required>
-          <select id="m-role"><option value="caller">Caller</option><option value="admin">Admin (can add searches and people)</option></select>
-          <button class="btn primary" type="submit">Create login link</button>
-        </form>
-        <div id="member-link" class="share" hidden></div>
-      </div>
-      <div class="panel">
-        <h2>Team</h2>
-        <div id="members"></div>
-      </div>
-    </section>
-
-    <footer class="foot">Business data: Overture Maps Foundation, &copy; OpenStreetMap contributors.</footer>
   </div>
 
-  <dialog id="settings">
-    <form method="dialog" class="stack">
-      <h2>Settings</h2>
-      <label>Your name (used in the call script)<input id="s-name" placeholder="e.g. Priya"></label>
-      <label>Company name<input id="s-company" placeholder="e.g. Kushi Web Studio"></label>
-      <label>Price you quote (optional)<input id="s-price" placeholder="e.g. from ₹7,999"></label>
-      <div class="row">
-        <button class="btn primary" value="save">Save</button>
-        <button class="btn ghost" value="cancel">Close</button>
-      </div>
-      <button id="logout-btn" class="btn danger" type="button">Log out on this phone</button>
+  <dialog id="sheet" class="sheet"><div id="sheet-body"></div></dialog>
+
+  <dialog id="settings" class="sheet">
+    <form method="dialog" class="stack pad">
+      <div class="sheet-head"><h2>Settings</h2><button class="icon-btn close" value="cancel" aria-label="Close"></button></div>
+      <p class="muted small">These fill in the call script and the WhatsApp message on this phone.</p>
+      <label>Your name<input id="s-name" placeholder="e.g. Shreya"></label>
+      <label>Company name<input id="s-company" placeholder="e.g. Kalvio Build"></label>
+      <label>Price you quote (optional)<input id="s-price" placeholder="e.g. from ₹3,000"></label>
+      <label>Free sample link (optional)<input id="s-sample" placeholder="e.g. https://kalvio-build.vercel.app"></label>
+      <button class="btn primary wide" value="save">Save</button>
+      <button id="logout-btn" class="btn ghost wide danger" type="button">Log out on this phone</button>
     </form>
   </dialog>
 
-  <dialog id="callback-dialog">
-    <form method="dialog" class="stack">
-      <h2>Call back when?</h2>
-      <input id="cb-when" type="datetime-local" required>
-      <div class="chips" id="cb-quick"></div>
-      <div class="row">
-        <button class="btn primary" value="ok">Save callback</button>
-        <button class="btn ghost" value="cancel" formnovalidate>Cancel</button>
-      </div>
-    </form>
-  </dialog>
-
-  <div id="toast" class="toast" hidden></div>
+  <div id="toast" class="toast" role="status" hidden></div>
 
   <script src="config.js"></script>
   <script src="meta.js"></script>

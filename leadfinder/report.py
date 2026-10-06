@@ -153,6 +153,9 @@ def send_morning_email(since_hours: float = 4, dry_run: bool = False):
     since = (datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(hours=since_hours)).isoformat()
     limit = int(os.environ.get("REPORT_LEADS", "10"))
     countries = [c.strip().upper() for c in os.environ.get("REPORT_COUNTRIES", "IN").split(",") if c.strip()] or None
+    if not dry_run:  # today's hot leads: the same shops appear in the app's Today tab
+        picked = db.call("worker_pick_hot", p_countries=countries or ["IN"], p_limit=limit)
+        log.info("Picked %s hot leads for %s", picked.get("picked"), picked.get("date"))
     data = db.report(since, limit, mark=False, countries=countries)
     subject, body = build(data, os.environ.get("APP_URL"))
     attachment = _csv(data["leads"])
