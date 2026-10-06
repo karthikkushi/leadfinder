@@ -3,6 +3,9 @@ name: Morning lead run
 on:
   schedule:
     - cron: "30 0 * * *"   # 06:00 India time, every day
+    # Backups: GitHub sometimes drops scheduled runs. These do nothing if today's email already went out.
+    - cron: "0 2 * * *"    # 07:30 India time
+    - cron: "30 3 * * *"   # 09:00 India time
   workflow_dispatch:
     inputs:
       minutes:
@@ -41,10 +44,19 @@ jobs:
       - uses: astral-sh/setup-uv@v6
       - name: Install
         run: uv venv --python 3.13 .venv && uv pip install --python .venv/bin/python -r requirements.txt
+      - name: Already done today?
+        id: guard
+        run: |
+          sent=$(.venv/bin/python -m leadfinder sent-today 2>/dev/null | tail -1 || echo 0)
+          if [ "${{ github.event_name }}" = "schedule" ] && [ "${sent:-0}" -gt 0 ]; then
+            echo "Today's email already went out ($sent leads) - this backup run stops here."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          fi
       - name: Find and check leads (about 3 hours)
+        if: steps.guard.outputs.skip != 'true'
         run: .venv/bin/python -m leadfinder worker --plan --minutes ${{ inputs.minutes || '170' }}
       - name: Email today's leads
-        if: ${{ always() && (github.event_name == 'schedule' || inputs.send_email != 'no') }}
+        if: ${{ always() && steps.guard.outputs.skip != 'true' && (github.event_name == 'schedule' || inputs.send_email != 'no') }}
         run: .venv/bin/python -m leadfinder email --since-hours 4
       - name: Keep the daily schedule switched on
         # GitHub pauses schedules in repos with no activity for 60 days; this resets that timer.

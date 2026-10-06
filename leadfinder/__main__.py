@@ -37,6 +37,7 @@ def main():
     q.add_argument("city")
     q.add_argument("--country", default="IN")
     q.add_argument("--category", default="all")
+    sub.add_parser("sent-today", help="print how many leads were emailed since midnight India time")
     a = sub.add_parser("audit", help="grade one website")
     a.add_argument("url")
     args = p.parse_args()
@@ -54,6 +55,10 @@ def main():
                        json={"p_code": os.environ["ADMIN_CODE"], "p_country": args.country, "p_city": args.city,
                              "p_category": args.category})
         print(r.text)
+    elif args.cmd == "sent-today":
+        from .db import DB
+        countries = [c.strip().upper() for c in os.environ.get("REPORT_COUNTRIES", "IN").split(",") if c.strip()]
+        print(DB().call("worker_sent_today", p_countries=countries or None))
     elif args.cmd == "audit":
         from .verify import audit
         print(json.dumps(audit(args.url), indent=2))
