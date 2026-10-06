@@ -41,6 +41,7 @@ def main():
     f.add_argument("--city")
     f.add_argument("--country", default="IN")
     f.add_argument("--all", action="store_true", help="re-measure every city, not only new leads")
+    sub.add_parser("recheck", help="re-check every shop marked 'no website' with the current rules")
     sub.add_parser("sent-today", help="print how many leads were emailed since midnight India time")
     a = sub.add_parser("audit", help="grade one website")
     a.add_argument("url")
@@ -65,6 +66,29 @@ def main():
         db = DB()
         n = compute_city(db, args.country, args.city) if args.city else compute_missing(db, not args.all)
         print(f"scored {n} leads")
+    elif args.cmd == "recheck":
+        from .db import DB
+        from .verify import Searcher, check
+        db, searcher = DB(), Searcher()
+        leads = db.call("worker_no_website_checked", p_limit=2000) or []
+        fixed, kept, retry = 0, 0, []
+        for i, lead in enumerate(leads, 1):
+            r = check(lead, searcher)
+            if r is None:
+                retry.append(lead["id"])
+                continue
+            db.save_checks([r])
+            if r["priority"] != 1:
+                fixed += 1
+                logging.info("Found a website for %s: %s (%s)", lead["name"], r["website"], r["website_status"])
+            else:
+                kept += 1
+            if i % 20 == 0:
+                logging.info("Re-checked %d of %d", i, len(leads))
+        if retry:
+            db.call("worker_reset_checks", p_ids=retry)
+        print(f"re-checked {len(leads)}: {fixed} actually have a website, {kept} confirmed no website, "
+              f"{len(retry)} sent back to the queue (search unavailable)")
     elif args.cmd == "sent-today":
         from .db import DB
         countries = [c.strip().upper() for c in os.environ.get("REPORT_COUNTRIES", "IN").split(",") if c.strip()]

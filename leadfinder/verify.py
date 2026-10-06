@@ -7,6 +7,7 @@
 import datetime
 import logging
 import re
+import socket
 import threading
 import time
 
@@ -17,7 +18,7 @@ from selectolax.lexbor import LexborHTMLParser as HTMLParser
 
 from . import llm
 from .classify import distinct_key, host_of, is_listing_page, link_kind, name_key, normalize_url, resemblance, score
-from .config import CATEGORY_LABELS, SEARCH_REGION
+from .config import CATEGORY_LABELS, GENERIC_WORDS, SEARCH_REGION
 
 log = logging.getLogger(__name__)
 UA = ("Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) "
@@ -146,7 +147,7 @@ def audit(url: str, name: str | None = None, phone_intl: str | None = None) -> d
 class Searcher:
     """Free web search through ddgs, rotating DuckDuckGo, Yahoo and Bing so no single engine gets hammered.
     One search at a time; backs off when every engine fails."""
-    ENGINES = ["duckduckgo", "yahoo", "bing"]
+    ENGINES = ["yahoo", "duckduckgo", "auto"]
 
     def __init__(self):
         self.failures = 0
@@ -176,14 +177,78 @@ class Searcher:
                 self.failures = 0
                 time.sleep(0.7)
                 return results
-            if empty:
-                self.failures = 0
-                return []
+            # Every engine came back empty or failed. Real shops almost always show up somewhere (at least in
+            # directories), so this is throttling, not proof of "no website": report a failed search.
             self.failures += 1
             wait = min(300, 30 * self.failures)
-            log.info("Web search unavailable (%s); pausing searches %ss", "; ".join(errors), wait)
+            log.info("Web search returned nothing (%d empty, %s); pausing searches %ss", empty, "; ".join(errors) or "-", wait)
             self.disabled_until = time.monotonic() + wait
             return None
+
+
+TLDS = {"IN": (".com", ".in", ".co.in"), "US": (".com", ".net"), "GB": (".co.uk", ".com"), "IE": (".ie", ".com"),
+        "AU": (".com.au", ".com"), "IT": (".it", ".com"), "AE": (".ae", ".com"), "CA": (".ca", ".com"),
+        "NZ": (".co.nz", ".com"), "SG": (".sg", ".com")}
+NOT_IN_DOMAIN = {"the", "and", "of", "in", "at", "pvt", "ltd", "llc", "inc", "co", "sri", "shri", "shree", "sree", "new",
+                 "dr", "multispeciality", "multispecialty", "speciality", "specialty", "best", "top", "family",
+                 "bangalore", "bengaluru", "mysore", "mysuru", "india", "indian"}
+CITY_NAMES = {"bengaluru": ("bengaluru", "bangalore"), "mysuru": ("mysuru", "mysore")}
+
+
+def domain_candidates(lead: dict) -> list[str]:
+    words = [w for w in re.findall(r"[a-z0-9]+", lead["name"].lower()) if w not in NOT_IN_DOMAIN]
+    distinct = [w for w in words if w not in GENERIC_WORDS]
+    generic = [w for w in words if w in GENERIC_WORDS]
+    labels = []
+    if distinct:
+        core = "".join(distinct[:2])
+        labels.append(core)
+        labels += [core + g for g in generic[:2]]
+        if len(generic) >= 2:
+            labels.append(core + generic[0] + generic[1])
+        if len(distinct) > 2:
+            labels.append("".join(distinct))
+    labels.append("".join(words))
+    labels = [l for l in dict.fromkeys(labels) if 5 <= len(l) <= 40]
+    return [l + tld for l in labels[:6] for tld in TLDS.get(lead["country"], (".com",))]
+
+
+def _confirms(text: str, lead: dict, label: str = "") -> bool:
+    """Does this page belong to this shop? Its name must appear, plus its phone number - or, when the web address
+    is more than the bare name (avinashidental, not just avinashi), its city or area."""
+    flat = name_key(text)
+    key = distinct_key(lead["name"]) or name_key(lead["name"])
+    if len(key) < 4 or key not in flat:
+        return False
+    phone8 = _digits(lead.get("phone_intl"))[-8:]
+    if phone8 and phone8 in _digits(text):
+        return True
+    if label and label == key:  # e.g. lakshmi.com: too likely to be someone else without a phone match
+        return False
+    places = list(CITY_NAMES.get(lead["city"].lower(), (lead["city"].lower(),)))
+    places += [w for w in re.findall(r"[a-z]{5,}", (lead.get("address") or "").lower())[:3]]
+    return any(name_key(p) in flat for p in places if p)
+
+
+def guess_site(lead: dict) -> str | None:
+    """Tries web addresses made from the shop's name (avinashidental.com, ...)."""
+    for domain in domain_candidates(lead):
+        label = domain.split(".")[0]
+        try:
+            socket.getaddrinfo(domain, 443, proto=socket.IPPROTO_TCP)
+        except (socket.gaierror, UnicodeError, OSError):
+            continue
+        for url in (f"https://{domain}/", f"http://{domain}/"):
+            try:
+                page = _get(url, timeout=12)
+            except Exception:
+                continue
+            if page.status_code < 400 and link_kind(str(page.url)) in ("own", "builder"):
+                text = page.text[:2_000_000]
+                if not any(p in text.lower() for p in PARKED) and _confirms(text, lead, label):
+                    return str(page.url)
+            break
+    return None
 
 
 def find_own_site(lead: dict, results: list[dict]) -> tuple[str | None, list[str], bool]:
@@ -239,11 +304,17 @@ def check(lead: dict, searcher: Searcher) -> dict | None:
         status, issues = a["status"], a["issues"]
         website, email, socials = a.get("website"), a.get("email"), a.get("socials") or []
     if status in ("none", "social_only", "directory_only", "dead"):
-        query = f"{lead['name']} {lead.get('locality') or ''} {lead['city']}".strip()
-        results = searcher.search(query, SEARCH_REGION.get(lead["country"], "wt-wt"))
-        if results is None:
-            return None
-        own, found_socials, unsure = find_own_site(lead, results)
+        own, found_socials, unsure = guess_site(lead), [], False
+        if not own:
+            area = lead.get("locality") if (lead.get("locality") or "").lower() != lead["city"].lower() else ""
+            query = " ".join(x for x in (lead["name"], area, lead["city"]) if x)
+            results = searcher.search(query, SEARCH_REGION.get(lead["country"], "wt-wt"))
+            if results is None:
+                return None
+            key = distinct_key(lead["name"]) or name_key(lead["name"])
+            if not any(key in name_key(r.get("title", "") + " " + r.get("href", "")) for r in results):
+                return None  # none of the results is about this shop: a weak search, try again another day
+            own, found_socials, unsure = find_own_site(lead, results)
         socials += found_socials
         if own:
             a = audit(own, lead["name"], lead.get("phone_intl"))
