@@ -160,4 +160,4 @@ def send_morning_email(since_hours: float = 4, dry_run: bool = False):
         smtp.login(user, password)
         smtp.send_message(msg)
     db.call("worker_mark_emailed", p_ids=[l["id"] for l in data["leads"]])
-    log.info("Sent '%s' to %s", subject, ", ".join(to))
+    log.info("Sent '%s' to %d recipient(s)", subject, len(to))  # no addresses: the run logs are public

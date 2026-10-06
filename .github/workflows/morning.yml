@@ -56,11 +56,13 @@ jobs:
         if: steps.guard.outputs.skip != 'true'
         run: .venv/bin/python -m leadfinder worker --plan --minutes ${{ inputs.minutes || '170' }}
       - name: Email today's leads
-        if: ${{ always() && steps.guard.outputs.skip != 'true' && (github.event_name == 'schedule' || inputs.send_email != 'no') }}
+        # !cancelled(): a stopped run must never send the email
+        if: ${{ !cancelled() && steps.guard.outputs.skip != 'true' && (github.event_name == 'schedule' || inputs.send_email != 'no') }}
         run: .venv/bin/python -m leadfinder email --since-hours 4
       - name: Keep the daily schedule switched on
         # GitHub pauses schedules in repos with no activity for 60 days; this resets that timer.
-        if: always()
+        # Only on scheduled runs that weren't stopped, so it never re-enables a schedule someone paused.
+        if: ${{ !cancelled() && github.event_name == 'schedule' }}
         env:
           GH_TOKEN: ${{ github.token }}
         run: gh api -X PUT "repos/${{ github.repository }}/actions/workflows/morning.yml/enable" || true
