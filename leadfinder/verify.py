@@ -225,9 +225,18 @@ def _confirms(text: str, lead: dict, label: str = "") -> bool:
         return True
     if label and label == key:  # e.g. lakshmi.com: too likely to be someone else without a phone match
         return False
-    places = list(CITY_NAMES.get(lead["city"].lower(), (lead["city"].lower(),)))
-    places += [w for w in re.findall(r"[a-z]{5,}", (lead.get("address") or "").lower())[:3]]
-    return any(name_key(p) in flat for p in places if p)
+    # otherwise the page must name the shop's city (a clinic with the same name elsewhere won't)
+    cities = CITY_NAMES.get(lead["city"].lower(), (lead["city"].lower(),))
+    return any(name_key(c) in flat for c in cities)
+
+
+def belongs(url: str, lead: dict) -> bool:
+    """Opens a found website and checks it's really this shop's (name + phone or city on the page)."""
+    try:
+        page = _get(url, timeout=15)
+        return page.status_code < 400 and _confirms(page.text[:2_000_000], lead)
+    except Exception:
+        return False
 
 
 def guess_site(lead: dict) -> str | None:
@@ -315,6 +324,8 @@ def check(lead: dict, searcher: Searcher) -> dict | None:
             if not any(key in name_key(r.get("title", "") + " " + r.get("href", "")) for r in results):
                 return None  # none of the results is about this shop: a weak search, try again another day
             own, found_socials, unsure = find_own_site(lead, results)
+            if own and not belongs(own, lead):  # e.g. a same-name clinic in another city
+                own, unsure = None, True
         socials += found_socials
         if own:
             a = audit(own, lead["name"], lead.get("phone_intl"))
