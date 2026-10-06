@@ -14,6 +14,10 @@
   const safeUrl = (u) => (/^https?:\/\//i.test(u || "") ? u : null);
   const host = (u) => { try { return new URL(u).hostname.replace(/^www\./, ""); } catch { return u || ""; } };
 
+  const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+  const installed = () => window.matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
+  let installPrompt = null;
+
   let code = null;
   let me = null;
   let view = "to_call";
@@ -48,7 +52,8 @@
     const fromLink = new URLSearchParams(location.hash.slice(1)).get("code");
     if (fromLink) {
       store.set("lf_code", fromLink);
-      history.replaceState(null, "", location.pathname);
+      // iPhone home-screen apps don't share the browser's memory, so there the code stays in the address
+      if (!isIOS) history.replaceState(null, "", location.pathname);
     }
     code = store.get("lf_code");
     if (!code) return showLogin();
@@ -62,6 +67,7 @@
     document.body.classList.toggle("is-admin", me.role === "admin");
     if (!store.get("lf_name")) store.set("lf_name", me.name);
     fillStaticSelects();
+    showInstall();
     await Promise.all([loadStats(), loadOptions()]);
     loadLeads(true);
   }
@@ -81,9 +87,36 @@
 
   window.addEventListener("hashchange", () => { if (location.hash.includes("code=")) start(); });
 
+  // ---------- install on the home screen ----------
+  function showInstall() {
+    if (installed() || store.get("lf_install_hidden") || $("#app").hidden) return;
+    if (installPrompt) {
+      $("#install-text").textContent = "Add Lead Finder to your home screen";
+      $("#install-btn").hidden = false;
+    } else if (isIOS) {
+      $("#install-text").textContent = "To install: tap Share, then 'Add to Home Screen'";
+      $("#install-btn").hidden = true;
+    } else {
+      return;
+    }
+    $("#install").hidden = false;
+  }
+  window.addEventListener("beforeinstallprompt", (e) => { e.preventDefault(); installPrompt = e; showInstall(); });
+  window.addEventListener("appinstalled", () => { $("#install").hidden = true; toast("Installed - open Lead Finder from your home screen"); });
+  $("#install-btn").addEventListener("click", async () => {
+    if (!installPrompt) return;
+    installPrompt.prompt();
+    await installPrompt.userChoice;
+    installPrompt = null;
+    $("#install").hidden = true;
+  });
+  $("#install-close").addEventListener("click", () => { $("#install").hidden = true; store.set("lf_install_hidden", "1"); });
+  if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(() => {});
+
   $("#login-form").addEventListener("submit", (e) => {
     e.preventDefault();
-    store.set("lf_code", $("#code-input").value.trim());
+    const typed = $("#code-input").value.trim();
+    store.set("lf_code", typed.includes("code=") ? typed.split("code=")[1].split(/[&\s]/)[0] : typed);
     start();
   });
 

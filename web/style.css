@@ -164,3 +164,9 @@ dialog::backdrop { background: rgba(10, 15, 30, .45); }
   background: var(--text); color: var(--bg); padding: 10px 16px; border-radius: 10px; font-size: 14px; z-index: 50;
   max-width: calc(100vw - 32px); }
 .foot { text-align: center; color: var(--muted); font-size: 12px; margin-top: 24px; }
+
+.install { display: flex; align-items: center; gap: 10px; background: var(--surface); border: 1px solid var(--border);
+  border-radius: 14px; padding: 10px 12px; margin: 4px 0 12px; box-shadow: var(--shadow); font-size: 14px; }
+.install img { border-radius: 9px; flex: none; }
+.install span { flex: 1; }
+.install .btn { min-height: 36px; padding: 6px 14px; }

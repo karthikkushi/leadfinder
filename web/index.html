@@ -7,6 +7,11 @@
   <meta name="robots" content="noindex, nofollow">
   <title>Lead Finder</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%231d4ed8'/><path d='M9 22l5-12 4 8 2-4 3 8' stroke='white' stroke-width='2.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/></svg>">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="apple-touch-icon" href="apple-touch-icon.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Lead Finder">
+  <meta name="mobile-web-app-capable" content="yes">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -15,7 +20,7 @@
       <div class="brand"><span class="logo"></span>Lead Finder</div>
       <p class="muted">Enter your access code. Ask the owner for your link if you don't have one.</p>
       <form id="login-form">
-        <input id="code-input" type="password" autocomplete="current-password" placeholder="Access code" required>
+        <input id="code-input" type="password" autocomplete="current-password" placeholder="Access code or your login link" required>
         <button class="btn primary" type="submit">Open</button>
       </form>
       <p id="login-error" class="error" hidden></p>
@@ -29,6 +34,13 @@
         <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>
       </button>
     </header>
+
+    <div id="install" class="install" hidden>
+      <img src="icon-192.png" alt="" width="36" height="36">
+      <span id="install-text">Add Lead Finder to your home screen</span>
+      <button id="install-btn" class="btn primary">Install</button>
+      <button id="install-close" class="icon-btn" aria-label="Hide">✕</button>
+    </div>
 
     <section class="stats" id="stats"></section>
 
