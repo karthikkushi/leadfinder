@@ -2,15 +2,15 @@ name: Morning lead run
 
 on:
   schedule:
-    - cron: "30 0 * * *"   # 06:00 India time, every day
+    - cron: "30 2 * * *"   # 08:00 India time, every day (email about 9 AM)
     # Backups: GitHub sometimes drops scheduled runs. These do nothing if today's email already went out.
-    - cron: "0 2 * * *"    # 07:30 India time
-    - cron: "30 3 * * *"   # 09:00 India time
+    - cron: "0 4 * * *"    # 09:30 India time
+    - cron: "30 5 * * *"   # 11:00 India time
   workflow_dispatch:
     inputs:
       minutes:
         description: "How long the agents work (minutes)"
-        default: "170"
+        default: "45"
       send_email:
         description: "Send the lead email at the end (yes/no)"
         default: "yes"
@@ -26,7 +26,7 @@ permissions:
 jobs:
   morning:
     runs-on: ubuntu-latest
-    timeout-minutes: 200
+    timeout-minutes: 75
     env:
       SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
       SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
@@ -36,7 +36,7 @@ jobs:
       GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
       REPORT_TO: ${{ secrets.REPORT_TO }}
       APP_URL: ${{ secrets.APP_URL }}
-      REPORT_LEADS: "60"
+      REPORT_LEADS: "10"         # Shreya calls 7-10 shops a day
       REPORT_COUNTRIES: "IN"     # the morning email is India-only for now; add US when calling the USA
       CHECK_MIX: "IN,IN,US"      # two rounds of India checks for every round of US checks
     steps:
@@ -52,9 +52,9 @@ jobs:
             echo "Today's email already went out ($sent leads) - this backup run stops here."
             echo "skip=true" >> "$GITHUB_OUTPUT"
           fi
-      - name: Find and check leads (about 3 hours)
+      - name: Score and check the best leads (about 45 minutes)
         if: steps.guard.outputs.skip != 'true'
-        run: .venv/bin/python -m leadfinder worker --plan --minutes ${{ inputs.minutes || '170' }}
+        run: .venv/bin/python -m leadfinder worker --minutes ${{ inputs.minutes || '45' }}
       - name: Email today's leads
         # !cancelled(): a stopped run must never send the email
         if: ${{ !cancelled() && steps.guard.outputs.skip != 'true' && (github.event_name == 'schedule' || inputs.send_email != 'no') }}

@@ -37,6 +37,10 @@ def main():
     q.add_argument("city")
     q.add_argument("--country", default="IN")
     q.add_argument("--category", default="all")
+    f = sub.add_parser("features", help="measure lead signals and re-score (all cities missing them)")
+    f.add_argument("--city")
+    f.add_argument("--country", default="IN")
+    f.add_argument("--all", action="store_true", help="re-measure every city, not only new leads")
     sub.add_parser("sent-today", help="print how many leads were emailed since midnight India time")
     a = sub.add_parser("audit", help="grade one website")
     a.add_argument("url")
@@ -55,6 +59,12 @@ def main():
                        json={"p_code": os.environ["ADMIN_CODE"], "p_country": args.country, "p_city": args.city,
                              "p_category": args.category})
         print(r.text)
+    elif args.cmd == "features":
+        from .db import DB
+        from .features import compute_city, compute_missing
+        db = DB()
+        n = compute_city(db, args.country, args.city) if args.city else compute_missing(db, not args.all)
+        print(f"scored {n} leads")
     elif args.cmd == "sent-today":
         from .db import DB
         countries = [c.strip().upper() for c in os.environ.get("REPORT_COUNTRIES", "IN").split(",") if c.strip()]

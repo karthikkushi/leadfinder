@@ -45,7 +45,7 @@ def _links(lead: dict) -> dict:
     return {"call": f"tel:{lead.get('phone_intl')}", "whatsapp": f"https://wa.me/{digits}", "maps": maps}
 
 
-def _card(lead: dict) -> str:
+def _card(lead: dict, rank: int = 0) -> str:
     e = html.escape
     links = _links(lead)
     area = lead.get("locality")
@@ -58,21 +58,44 @@ def _card(lead: dict) -> str:
            "font-size:13px;font-weight:600;")
     return f"""
 <tr><td style="padding:12px 14px;border-bottom:1px solid #eaecf0">
-  <div style="font-size:15px;font-weight:700;color:#101828">{e(lead['name'])}</div>
+  <div style="font-size:15px;font-weight:700;color:#101828">{f"{rank}. " if rank else ""}{e(lead['name'])}
+    {_tier_badge(lead.get("tier"))}</div>
   <div style="font-size:13px;color:#475467;margin-top:2px">{e(CATEGORY_LABELS.get(lead['category'], lead['category']))}
     &middot; {e(place)}</div>
   <div style="font-size:13px;color:{colour};margin-top:4px">{e(_status_line(lead))}</div>
   <div style="font-size:14px;color:#101828;margin-top:4px">{e(lead.get('phone') or '')}{website}</div>
+  {_why(lead)}
   <a href="{e(links['call'])}" style="{btn}background:#1570ef;color:#fff">Call</a>
   <a href="{e(links['whatsapp'])}" style="{btn}background:#12b76a;color:#fff">WhatsApp</a>
   <a href="{e(links['maps'])}" style="{btn}background:#f2f4f7;color:#344054">Map</a>
 </td></tr>"""
 
 
+TIER_STYLE = {"A": ("#027a48", "#ecfdf3", "Best lead"), "B": ("#175cd3", "#eff8ff", "Good lead"),
+              "C": ("#475467", "#f2f4f7", "Lead")}
+
+
+def _tier_badge(tier: str | None) -> str:
+    if tier not in TIER_STYLE:
+        return ""
+    fg, bg, label = TIER_STYLE[tier]
+    return (f'<span style="display:inline-block;margin-left:6px;padding:1px 8px;border-radius:999px;font-size:11px;'
+            f'font-weight:600;color:{fg};background:{bg};vertical-align:middle">{label}</span>')
+
+
+def _why(lead: dict) -> str:
+    reasons = [r for r in (lead.get("reasons") or []) if not r.startswith(("No website", "Their website", "Website needs"))]
+    if not reasons:
+        return ""
+    items = "".join(f"<li>{html.escape(r)}</li>" for r in reasons[:4])
+    return (f'<div style="font-size:12px;color:#475467;margin-top:6px"><b>Why call:</b>'
+            f'<ul style="margin:2px 0 0 18px;padding:0">{items}</ul></div>')
+
+
 def _section(title: str, note: str, leads: list[dict]) -> str:
     if not leads:
         return ""
-    rows = "".join(_card(l) for l in leads)
+    rows = "".join(_card(l, i + 1) for i, l in enumerate(leads))
     return f"""
 <h2 style="font-size:17px;color:#101828;margin:26px 0 4px">{html.escape(title)} ({len(leads)})</h2>
 <div style="font-size:13px;color:#667085;margin-bottom:8px">{html.escape(note)}</div>
@@ -96,11 +119,9 @@ def _csv(leads: list[dict]) -> bytes:
 
 def build(data: dict, app_url: str | None) -> tuple[str, str]:
     leads = data["leads"]
-    no_site = [l for l in leads if l["priority"] == 1]
-    improve = [l for l in leads if l["priority"] == 2]
     cities = sorted({l["city"] for l in leads})
     today = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=5, minutes=30)))
-    subject = f"{len(leads)} shops to call today" + (f" - {', '.join(cities[:3])}" if cities else "") + \
+    subject = f"Today's {len(leads)} best shops to call" + (f" - {', '.join(cities[:3])}" if cities else "") + \
               f" ({today:%a %d %b})"
     t = data["totals"]
     jobs = "".join(f"<li>{html.escape(j['city'])}: {html.escape(j.get('message') or j['status'])}</li>"
@@ -114,14 +135,12 @@ def build(data: dict, app_url: str | None) -> tuple[str, str]:
            f'Open the calling app to record results</a></p>') if app_url else ""
     body = f"""<!doctype html><html><body style="margin:0;background:#f9fafb">
 <div style="max-width:640px;margin:0 auto;padding:20px 16px;font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif">
-<h1 style="font-size:21px;color:#101828;margin:0 0 6px">Good morning! {len(leads)} shops to call today</h1>
-<div style="font-size:14px;color:#475467">This morning the agents found <b>{data['new_found']}</b> new shops and
-checked <b>{data['checked']}</b> websites. Waiting in the database: <b>{t['no_website']}</b> shops with no website,
-<b>{t['improve_website']}</b> whose website needs work.</div>
+<h1 style="font-size:21px;color:#101828;margin:0 0 6px">Good morning! Today's {len(leads)} best shops to call</h1>
+<div style="font-size:14px;color:#475467">Picked from <b>{t['tier_a'] + t['tier_b']:,}</b> strong leads, best first.
+Each one's website was checked this morning, and "Why call" gives you an opening line.</div>
 {app}
 {f'<h2 style="font-size:17px;color:#101828;margin:22px 0 6px">Callbacks due</h2><ul style="font-size:14px;color:#344054">{callbacks}</ul>' if callbacks else ''}
-{_section("No website - call these first", "Pitch: a simple website with Call and WhatsApp buttons, photos and a map.", no_site)}
-{_section("Website needs work", "Pitch: a modern, fast, phone-friendly redesign. Mention the problems listed.", improve)}
+{_section("Call in this order", "No website: offer a simple site with Call/WhatsApp buttons, photos and a map. Website needs work: offer a modern phone-friendly redesign and mention the problems.", leads)}
 {f'<h3 style="font-size:14px;color:#344054;margin:24px 0 4px">Today\'s searches</h3><ul style="font-size:13px;color:#667085">{jobs}</ul>' if jobs else ''}
 <p style="font-size:12px;color:#98a2b3;margin-top:24px">The same list is attached as a spreadsheet (CSV).
 Business data: Overture Maps Foundation and &copy; OpenStreetMap contributors.</p>
@@ -132,7 +151,7 @@ Business data: Overture Maps Foundation and &copy; OpenStreetMap contributors.</
 def send_morning_email(since_hours: float = 4, dry_run: bool = False):
     db = DB()
     since = (datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(hours=since_hours)).isoformat()
-    limit = int(os.environ.get("REPORT_LEADS", "60"))
+    limit = int(os.environ.get("REPORT_LEADS", "10"))
     countries = [c.strip().upper() for c in os.environ.get("REPORT_COUNTRIES", "IN").split(",") if c.strip()] or None
     data = db.report(since, limit, mark=False, countries=countries)
     subject, body = build(data, os.environ.get("APP_URL"))

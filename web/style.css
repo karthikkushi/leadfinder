@@ -107,6 +107,15 @@ label { display: grid; gap: 6px; font-size: 14px; color: var(--muted); }
 .pill.p2 { background: var(--amber-soft); color: var(--amber); }
 .pill.done { background: var(--surface-2); color: var(--muted); }
 .issues { margin: 6px 0 0; padding-left: 18px; font-size: 13px; color: var(--muted); }
+.why { margin: 8px 0 0; padding: 8px 12px 8px 28px; font-size: 13px; color: var(--text); background: var(--surface-2);
+  border-radius: 10px; }
+.why li + li { margin-top: 2px; }
+.tier { display: inline-block; vertical-align: middle; font-size: 11px; font-weight: 650; padding: 2px 8px;
+  border-radius: 999px; margin-left: 4px; }
+.tier.tA { background: #e7f6ec; color: #087443; }
+.tier.tB { background: var(--blue-soft); color: var(--primary); }
+.tier.tC { background: var(--surface-2); color: var(--muted); }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .tier.tA { background: #123d26; color: #6ee7a0; } }
 .phone { font-size: 16px; font-weight: 650; margin-top: 8px; font-variant-numeric: tabular-nums; }
 .actions { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-top: 10px; }
 .actions .btn { padding: 9px 6px; font-size: 13px; }

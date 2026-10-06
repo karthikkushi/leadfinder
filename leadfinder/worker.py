@@ -6,7 +6,7 @@ import os
 import time
 from concurrent.futures import ThreadPoolExecutor
 
-from . import geo, verify
+from . import features, geo, verify
 from .config import CATEGORY_KEYS, DAILY_TARGETS
 from .db import DB
 from .merge import merge
@@ -29,6 +29,7 @@ def find_leads(db: DB, job: dict) -> tuple[int, int, str]:
             log.warning("OpenStreetMap step failed: %s", e)
     leads = merge(found, extra)
     res = db.upsert_leads(leads)
+    features.compute_city(db, country, city)  # score the new shops right away
     p1 = sum(1 for l in leads if l["priority"] == 1)
     msg = (f"{len(leads)} shops with a phone number: {p1} without a real website, "
            f"{len(leads) - p1} with a website to check. {res['inserted']} new.")
@@ -79,6 +80,12 @@ def run(minutes: float, wait: bool = False, plan: bool = False):
     searcher = verify.Searcher()
     deadline = time.monotonic() + minutes * 60
     log.info("Agents started for up to %.0f minutes%s", minutes, " (waiting for new jobs when idle)" if wait else "")
+    learned = db.call("worker_refresh_learning")
+    log.info("Learning from calls: %s shop types updated", learned.get("categories"))
+    try:
+        features.compute_missing(db)  # any shops that haven't been scored yet
+    except Exception:
+        log.exception("Scoring step failed; continuing with checks")
     while time.monotonic() < deadline - 45:
         if plan:
             planned = db.plan(DAILY_TARGETS)

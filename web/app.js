@@ -304,11 +304,14 @@
       <button data-o="callback">Callback…</button>
       <button data-o="not_interested" class="bad">Not interested</button>` : `
       <button data-o="reopen">Move back to To call</button>`;
+    const tierLabel = { A: "Best lead", B: "Good lead", C: "Lead" }[l.tier];
+    const why = (l.reasons || []).filter((r) => !/^(No website|Their website|Website needs)/.test(r)).slice(0, 4);
+    const whyHtml = why.length ? `<ul class="why">${why.map((r) => `<li>${esc(r)}</li>`).join("")}</ul>` : "";
     return `
     <article class="lead" data-id="${l.id}">
-      <h3>${esc(l.name)}</h3>
+      <h3>${esc(l.name)}${tierLabel ? ` <span class="tier t${l.tier}">${tierLabel}</span>` : ""}</h3>
       <div class="meta">${esc(CAT[l.category] || l.category)} · ${esc(areaOf(l))}</div>
-      <span class="pill ${pillClass}">${esc(statusText(l))}</span>${issues}
+      <span class="pill ${pillClass}">${esc(statusText(l))}</span>${issues}${whyHtml}
       <div class="phone">${esc(l.phone || "")}</div>${cb}${last}
       <div class="actions">
         <a class="btn call" href="tel:${esc(l.phone_intl || "")}">Call</a>

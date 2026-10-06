@@ -62,15 +62,33 @@ def _load_area(bbox) -> str:
     return table
 
 
+# taxonomy name -> categories that list it, in config order (fast lookup for 100k+ places)
+_TOKEN_CATS: dict[str, list[str]] = {}
+for _key, _label, _tokens, _osm, _w in CATEGORIES:
+    for _t in _tokens:
+        if not _t.startswith("="):
+            _TOKEN_CATS.setdefault(_t, []).append(_key)
+
+
 def _category_for(hier: list[str] | None, tprimary: str | None, wanted: set[str]) -> str | None:
     # Most specific level first, so a jewellery shop (fashion_and_apparel_store > jewelry_store) is jewellery.
     for level in reversed(hier or ([tprimary] if tprimary else [])):
-        for key, _label, tokens, _osm, _w in CATEGORIES:
-            if key in wanted and level in tokens:
+        for key in _TOKEN_CATS.get(level, ()):
+            if key in wanted:
                 return key
     if tprimary == "shopping" and "general_shop" in wanted:
         return "general_shop"
     return None
+
+
+def categorise(name: str, hier, tprimary, wanted: set[str]) -> str | None:
+    """Category of a place, using its name when the map category is vague."""
+    category = _category_for(hier, tprimary, wanted)
+    if category in (None, "general_shop") or tprimary in BROAD:
+        hinted = _name_hint(name or "")
+        if hinted in wanted:
+            category = hinted
+    return category
 
 
 def _name_hint(name: str) -> str | None:
@@ -111,11 +129,7 @@ def fetch(bbox, categories: list[str], country: str, city: str) -> list[dict]:
         addr = addr or {}
         if addr.get("country") and addr["country"].upper() != country:
             continue
-        category = _category_for(hier, tprimary, wanted)
-        if category in (None, "general_shop") or tprimary in BROAD:
-            hinted = _name_hint(name)
-            if hinted in wanted:
-                category = hinted
+        category = categorise(name, hier, tprimary, wanted)
         if not category:
             continue
         websites = [w for w in (websites or []) if w]
