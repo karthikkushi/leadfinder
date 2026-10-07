@@ -2,10 +2,12 @@ name: Morning lead run
 
 on:
   schedule:
-    - cron: "30 2 * * *"   # 08:00 India time, every day (email about 9 AM)
-    # Backups: GitHub sometimes drops scheduled runs. These do nothing if today's email already went out.
-    - cron: "0 4 * * *"    # 09:30 India time
-    - cron: "30 5 * * *"   # 11:00 India time
+    # Odd minutes on purpose: GitHub is busiest at :00 and :30 and drops scheduled runs then.
+    # The database picks today's 10 leads itself at 08:45 India time even if every run here is dropped.
+    - cron: "19 2 * * *"   # 07:49 India time, every day (email about 8:40 AM)
+    # Backups: these do nothing if today's email already went out.
+    - cron: "41 3 * * *"   # 09:11 India time
+    - cron: "7 5 * * *"    # 10:37 India time
   workflow_dispatch:
     inputs:
       minutes:
