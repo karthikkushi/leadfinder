@@ -310,7 +310,7 @@
     }
   }
   const OUTCOME = { no_answer: "No answer", callback: "Callback", interested: "Interested", won: "Won", not_interested: "Not interested",
-    wrong_number: "Wrong number", do_not_call: "Don't call", has_website: "Has website" };
+    wrong_number: "Wrong number", do_not_call: "Don't call", has_website: "Has website", sample_sent: "Sample sent" };
   function whyList(l, n) {
     const why = (l.reasons || []).filter((r) => !/^(No website|Their website|Website needs|Checked:)/.test(r)).slice(0, n);
     return why.length ? `<ul class="why">${why.map((r) => `<li>${icon("check")}<span>${esc(r)}</span></li>`).join("")}</ul>` : "";
@@ -484,6 +484,7 @@
           <div class="outcomes">
             <button data-o="no_answer" class="quiet">No answer</button>
             <button data-o="callback">${icon("clock")}Callback</button>
+            <button data-o="sample_sent">Sample sent</button>
             <button data-o="interested" class="good">Interested</button>
             <button data-o="won" class="good">${icon("trophy")}Won</button>
             <button data-o="not_interested" class="quiet">Not interested</button>
@@ -532,7 +533,7 @@
     buttons.forEach((b) => { b.disabled = true; });
     try {
       await rpc("app_update_lead", { p_id: l.id, p_outcome: outcome, p_note: note, p_callback_at: callbackAt || null });
-      const labels = { no_answer: "Saved: no answer", callback: "Callback saved", interested: "Interested - great! 🎉", won: "Client won! 🎉",
+      const labels = { no_answer: "No answer: moved to Callbacks", sample_sent: "Sample sent: follow-up in 2 days", callback: "Callback saved", interested: "Interested - great! 🎉", won: "Client won! 🎉",
         not_interested: "Marked not interested", has_website: "Removed - they have a website", wrong_number: "Marked wrong number",
         do_not_call: "Won't be called again", reopen: "Moved back to the call list", note: "Note saved" };
       toast(labels[outcome] || "Saved");
