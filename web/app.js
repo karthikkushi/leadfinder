@@ -290,10 +290,10 @@
   // ---------- cards ----------
   function remember(rows) { rows.forEach((l) => S.byId.set(l.id, l)); }
   const initials = (name) => (name || "?").replace(/^(dr\.?|sri|shri|the)\s+/i, "").split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]).join("").toUpperCase();
+  const placeNorm = (s) => (s || "").toLowerCase().replace("mysore", "mysuru").replace("bangalore", "bengaluru");
   function areaOf(l) {
     const a = l.locality || "";
-    const norm = (s) => s.toLowerCase().replace("mysore", "mysuru").replace("bangalore", "bengaluru");
-    return !a || norm(a) === norm(l.city) ? l.city : `${a}, ${l.city}`;
+    return !a || placeNorm(a) === placeNorm(l.city) ? l.city : `${a}, ${l.city}`;
   }
   function socialNames(l) {
     const names = [...new Set((l.socials || []).map((s) => host(s).split(".")[0]).filter(Boolean))];
@@ -323,6 +323,7 @@
       ? `<span class="tag outcome">${icon("clock", "i")} ${esc(new Date(l.callback_at).toLocaleString("en-IN", { weekday: "short", hour: "numeric", minute: "2-digit" }))}</span>` : "";
     const last = l.last_outcome && l.stage !== "callback" ? `<span class="tag outcome">${esc(OUTCOME[l.last_outcome] || l.last_outcome)}</span>` : "";
     const digits = (l.phone_intl || "").replace(/\D/g, "");
+    const kit = l.stage === "interested" && kitLink(l);
     return `
     <article class="card ${done && S.tab === "today" ? "done" : ""}" data-id="${l.id}">
       <div class="card-top" data-open>
@@ -336,7 +337,8 @@
       ${whyList(l, 2)}
       <div class="card-actions">
         <a class="btn call" href="tel:${esc(l.phone_intl || "")}" data-call>${icon("phone")}Call</a>
-        <a class="btn wa" target="_blank" rel="noopener" href="https://wa.me/${digits}?text=${encodeURIComponent(waText(l))}">${icon("wa")}WhatsApp</a>
+        ${kit ? `<a class="btn wa" target="_blank" rel="noopener" href="${esc(kit)}">${icon("wa")}Send sample</a>`
+          : `<a class="btn wa" target="_blank" rel="noopener" href="https://wa.me/${digits}?text=${encodeURIComponent(waText(l))}">${icon("wa")}WhatsApp</a>`}
         <button class="btn more" data-open aria-label="Details and result">${icon("more")}</button>
       </div>
     </article>`;
@@ -378,7 +380,7 @@
     [/^Domain parked|^Domain is up for sale/, "the web address has expired"],
     [/^Old Google business.site/, "it was on Google's free site service, which Google has shut down"],
   ];
-  const plain = (issue) => { for (const [re, txt] of PLAIN) if (re.test(issue)) return issue.replace(re, txt).replace(/\s*\(.*$/, ""); return issue.toLowerCase(); };
+  const plain = (issue) => { for (const [re, txt] of PLAIN) if (re.test(issue)) return issue.replace(re, txt).replace(/\s+-\s.*$|\s*\(.*$/, ""); return issue.toLowerCase(); };
   const listJoin = (a) => (a.length <= 1 ? a.join("") : `${a.slice(0, -1).join(", ")} and ${a[a.length - 1]}`);
   function script(l) {
     const who = store.get("lf_name") || "[your name]";
@@ -410,6 +412,21 @@
       (sample ? ` Here is a sample of what we can build for you: ${sample}` : " Can I send you a free sample of what your website could look like?");
   }
 
+  // Shop types with a Kalvio Build sample website (kalvio-build repo, docs/DEMO_LINKS.md).
+  const SAMPLE_KEYS = new Set(["dentist", "dermatologist", "clinic", "physio", "eye_clinic", "vet", "pet_shop", "salon_beauty",
+    "gym_fitness", "jewellery", "clothing", "furniture_home", "events_photo", "tuition", "restaurant_cafe", "bakery_sweets", "home_services"]);
+  /** Kalvio Build's WhatsApp kit for this shop: opens with the sample link, both messages, a picture and a video ready. */
+  function kitLink(l) {
+    if (!SAMPLE_KEYS.has(l.category) || !S.code) return null;
+    const q = new URLSearchParams({ key: l.category, name: l.name });
+    if (l.locality && placeNorm(l.locality) !== placeNorm(l.city)) q.set("area", l.locality);
+    else if (l.address) q.set("address", l.address); // the kit picks the area out of the address
+    if (l.city) q.set("city", l.city);
+    if (l.phone_intl) q.set("phone", l.phone_intl);
+    // The code rides in the #hash, which browsers never send to a server; the kit needs it to take the picture.
+    return `https://kalvio-build.pages.dev/share?${q}#code=${encodeURIComponent(S.code)}`;
+  }
+
   // ---------- lead sheet ----------
   const pad = (n) => String(n).padStart(2, "0");
   const localValue = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
@@ -417,6 +434,7 @@
   function openLead(l, askResult = false) {
     const [st, cls] = statusTag(l);
     const digits = (l.phone_intl || "").replace(/\D/g, "");
+    const kit = kitLink(l);
     const maps = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${l.name} ${l.locality || ""} ${l.city}`)}`;
     const site = safeUrl(l.website) || safeUrl((l.socials || [])[0]);
     const siteLabel = safeUrl(l.website) ? host(l.website) : site ? socialNames(l)[0] || "Page" : null;
@@ -434,6 +452,7 @@
           <a class="btn call" href="tel:${esc(l.phone_intl || "")}" data-call-sheet>${icon("phone")}Call</a>
           <a class="btn wa" target="_blank" rel="noopener" href="https://wa.me/${digits}?text=${encodeURIComponent(waText(l))}">${icon("wa")}WhatsApp</a>
         </div>
+        ${kit ? `<a class="btn sample wide" target="_blank" rel="noopener" href="${esc(kit)}">${icon("wa")}<span>Send sample<small>Link, messages, picture and video, ready in one tap</small></span></a>` : ""}
         <div class="links">
           <a class="btn small ghost" target="_blank" rel="noopener" href="${esc(maps)}">${icon("map")}Map</a>
           ${site ? `<a class="btn small ghost" target="_blank" rel="noopener" href="${esc(site)}">${icon("globe")}${esc(siteLabel)}</a>` : ""}
