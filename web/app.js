@@ -334,7 +334,7 @@
           <div class="tags">${tier ? `<span class="tag ${tier[1]}">${tier[0]}</span>` : ""}<span class="tag ${cls}">${esc(st)}</span>${cb}${last}</div>
         </div>
       </div>
-      ${whyList(l, 2)}
+      ${l.brief?.headline ? `<p class="brief-head">${esc(l.brief.headline)}</p>` : whyList(l, 2)}
       <div class="card-actions">
         <a class="btn call" href="tel:${esc(l.phone_intl || "")}" data-call>${icon("phone")}Call</a>
         ${kit ? `<a class="btn wa" target="_blank" rel="noopener" href="${esc(kit)}">${icon("wa")}Send sample</a>`
@@ -404,7 +404,10 @@
     }
     return `Hello, am I speaking with ${l.name}? This is ${who} from ${co}.\n\n${body}\n\nIf they're busy: "When is a good time to call back?" (tap Callback)`;
   }
+  const fill = (t) => String(t || "").replaceAll("{me}", store.get("lf_name") || "[your name]").replaceAll("{company}", store.get("lf_company") || "[your company]");
+  const cite = (t) => esc(fill(t)).replace(/\s*\[F\d+\](\[F\d+\])*/g, "");
   function waText(l) {
+    if (l.brief?.whatsapp) return fill(l.brief.whatsapp);
     const who = store.get("lf_name") || "";
     const co = store.get("lf_company") || "";
     const sample = store.get("lf_sample");
@@ -431,6 +434,22 @@
   const pad = (n) => String(n).padStart(2, "0");
   const localValue = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
   const at = (days, hour) => { const d = new Date(); d.setDate(d.getDate() + days); d.setHours(hour, 0, 0, 0); return d; };
+  function briefHtml(b, closed) {
+    const li = (a) => (a || []).map((x) => `<li>${cite(x)}</li>`).join("");
+    return `<details class="box brief" ${closed ? "" : "open"}><summary><b>Sales brief</b></summary>
+      <p class="brief-head">${cite(b.headline)}</p>
+      <h4>Why call</h4><ul>${li(b.why_call)}</ul>
+      <h4>Sell</h4><p><b>${cite(b.sell?.main)}</b>${b.sell?.add_on ? ` + ${cite(b.sell.add_on)}` : ""}</p>
+      <h4>Say first</h4><p class="script">${cite(b.opening)}</p>
+      <h4>Ask</h4><ol>${li(b.questions)}</ol>
+      <h4>Pitch</h4><p class="script">${cite(b.pitch)}</p>
+      <h4>If they say…</h4>${(b.objections || []).map((o) => `<p><b>“${cite(o.they_say)}”</b><br>${cite(o.you_say)}</p>`).join("")}
+      <h4>Don't say</h4><ul>${li(b.dont_say)}</ul>
+      <h4>Free sample should show</h4><p>${cite(b.sample)}</p>
+      <h4>Follow up</h4><p>${cite(b.follow_up)}</p>
+      <details><summary class="muted small">Facts behind this brief</summary><ul class="muted small">${li(b.facts)}</ul></details>
+    </details>`;
+  }
   function openLead(l, askResult = false) {
     const [st, cls] = statusTag(l);
     const digits = (l.phone_intl || "").replace(/\D/g, "");
@@ -459,7 +478,7 @@
         </div>
         ${(l.reasons || []).length ? `<div class="box"><h4>Why call</h4>${whyList(l, 6).replace('class="why"', 'class="why" style="margin:0"')}</div>` : ""}
         ${issues}
-        <details class="box" ${askResult ? "" : "open"}><summary><b>What to say</b></summary><p class="script">${esc(script(l))}</p></details>
+        ${l.brief?.opening ? briefHtml(l.brief, askResult) : `<details class="box" ${askResult ? "" : "open"}><summary><b>What to say</b></summary><p class="script">${esc(script(l))}</p></details>`}
         <label>Notes<textarea id="note" placeholder="Owner's name, best time to call, price they asked…">${esc(l.notes || "")}</textarea></label>
         ${open ? `<div><h4 class="muted small" style="margin:0 0 8px">Result of the call</h4>
           <div class="outcomes">

@@ -28,7 +28,7 @@ permissions:
 jobs:
   morning:
     runs-on: ubuntu-latest
-    timeout-minutes: 75
+    timeout-minutes: 100
     env:
       SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
       SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
@@ -61,6 +61,10 @@ jobs:
         # !cancelled(): a stopped run must never send the email
         if: ${{ !cancelled() && steps.guard.outputs.skip != 'true' && (github.event_name == 'schedule' || inputs.send_email != 'no') }}
         run: .venv/bin/python -m leadfinder email --since-hours 4
+      - name: Research today's hot leads and write sales briefs (about 15 minutes)
+        if: ${{ !cancelled() && steps.guard.outputs.skip != 'true' }}
+        continue-on-error: true
+        run: .venv/bin/python -m leadfinder briefs
       - name: Keep the daily schedule switched on
         # GitHub pauses schedules in repos with no activity for 60 days; this resets that timer.
         # Only on scheduled runs that weren't stopped, so it never re-enables a schedule someone paused.

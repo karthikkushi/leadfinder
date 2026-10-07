@@ -42,6 +42,7 @@ def main():
     f.add_argument("--country", default="IN")
     f.add_argument("--all", action="store_true", help="re-measure every city, not only new leads")
     sub.add_parser("recheck", help="re-check every shop marked 'no website' with the current rules")
+    sub.add_parser("briefs", help="research today's hot leads and write their sales briefs")
     sub.add_parser("sent-today", help="print how many leads were emailed since midnight India time")
     a = sub.add_parser("audit", help="grade one website")
     a.add_argument("url")
@@ -89,6 +90,31 @@ def main():
             db.call("worker_reset_checks", p_ids=retry)
         print(f"re-checked {len(leads)}: {fixed} actually have a website, {kept} confirmed no website, "
               f"{len(retry)} sent back to the queue (search unavailable)")
+    elif args.cmd == "briefs":
+        from .brief import write_brief
+        from .db import DB
+        from .research import research
+        from .verify import Searcher
+        db, searcher, tried = DB(), Searcher(), set()
+        countries = [c.strip().upper() for c in os.environ.get("REPORT_COUNTRIES", "IN").split(",") if c.strip()]
+        while True:  # a skipped chain outlet gets replaced by a new pick, which needs a brief too
+            leads = [l for l in db.call("worker_research_leads", p_countries=countries or ["IN"]) or [] if l["id"] not in tried]
+            if not leads:
+                break
+            for lead in leads:
+                tried.add(lead["id"])
+                try:
+                    facts = research(db, lead, searcher)
+                    b = write_brief(facts)
+                except Exception:
+                    logging.exception("Brief for %s failed", lead["name"])
+                    continue
+                if not b["ok"]:  # AI unavailable: the app falls back to the standard script
+                    logging.warning("No brief for %s: %s", lead["name"], b.get("error"))
+                    continue
+                db.call("worker_save_brief", p_id=lead["id"], p_research=facts,
+                        p_brief=b["brief"] | {"facts": b["facts"], "unresolved": b["unresolved"]})
+                logging.info("Brief for %s: call %s (%d rounds)", lead["name"], b["brief"].get("call"), b["rounds"])
     elif args.cmd == "sent-today":
         from .db import DB
         countries = [c.strip().upper() for c in os.environ.get("REPORT_COUNTRIES", "IN").split(",") if c.strip()]

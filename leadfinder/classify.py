@@ -10,7 +10,7 @@ from .config import (BUILDER_SUFFIXES, CATEGORY_WEIGHT, DEAD_SUFFIXES, DIRECTORY
                      SOCIAL_DOMAINS)
 
 _extract = tldextract.TLDExtract(suffix_list_urls=())  # bundled list, no network
-CHAIN_URL = re.compile(r"utm_source=overture|store-?locator|/stores?/|/locations?/|store-details|storelocator|"
+CHAIN_URL = re.compile(r"utm_source=(?:overture|locator)|^https?://stores?\.|onelink\.me|store-?locator|/stores?/|/locations?/|store-details|storelocator|"
                        r"/branch(es)?/|/outlets?/|near-?me\.", re.I)
 
 

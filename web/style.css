@@ -236,3 +236,7 @@ td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
 .btn.sample { background: var(--green); color: #fff; min-height: 58px; justify-content: center; text-align: left; }
 .btn.sample span { display: flex; flex-direction: column; line-height: 1.2; }
 .btn.sample small { font-weight: 500; font-size: 12.5px; opacity: .9; }
+.brief-head{margin:6px 0 10px;font-weight:600;line-height:1.4}
+.brief h4{margin:14px 0 4px}
+.brief ul,.brief ol{margin:0;padding-left:20px}
+.brief p{margin:0 0 6px}
