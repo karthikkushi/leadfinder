@@ -291,8 +291,8 @@
   function viewStats() {
     const pct = (a, b) => (b ? `${Math.round((100 * a) / b)}%` : "-");
     const TIER = { A: "Best", B: "Good", C: "OK", X: "Other" };
-    const table = (rows, name) => `<table class="stats"><thead><tr><th>${name}</th><th>Called</th><th>Answered</th><th>Interested</th><th>Samples</th><th>Won</th></tr></thead><tbody>${
-      rows.map((r) => `<tr><td>${esc(r.label)}</td><td>${r.called}</td><td>${r.answered}</td><td>${r.interested} <small>${pct(r.interested, r.called)}</small></td><td>${r.samples}</td><td>${r.won}</td></tr>`).join("")}</tbody></table>`;
+    const table = (rows, name) => `<table class="funnel"><thead><tr><th>${name}</th><th>Called</th><th>Interested</th><th>Won</th></tr></thead><tbody>${
+      rows.map((r) => `<tr><td>${esc(r.label)}</td><td>${r.called}</td><td>${r.interested} <small>${pct(r.interested, r.called)}</small></td><td>${r.won}</td></tr>`).join("")}</tbody></table>`;
     rpc("app_funnel", { p_country: S.country }).then((f) => {
       if (S.tab !== "results" || S.results !== "stats") return;
       const t = f.total;
