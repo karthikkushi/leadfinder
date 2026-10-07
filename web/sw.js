@@ -1,6 +1,6 @@
 // Lets the installed app open quickly and show the last version when offline.
 // App files: network first (always the newest), cache as fallback. Database calls are never cached.
-const CACHE = "leadfinder-v7";
+const CACHE = "leadfinder-v8";
 const SHELL = ["./", "./index.html", "./style.css", "./app.js", "./config.js", "./meta.js", "./icon-192.png"];
 
 self.addEventListener("install", (e) => {

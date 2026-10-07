@@ -267,8 +267,8 @@
     }
   }
   function viewCallbacks() {
-    simpleList("callbacks", "No callbacks", "When a shop says 'call me later', tap Callback and it shows up here.", "clock")
-      .then(() => { $("#view").insertAdjacentHTML("afterbegin", `<div class="section-title"><h2>Callbacks</h2><span>soonest first</span></div>`); });
+    simpleList("callbacks", "No follow-ups", "Shops you need to call again show up here: no answer, call me later, sample sent and interested.", "clock")
+      .then(() => { $("#view").insertAdjacentHTML("afterbegin", `<div class="section-title"><h2>Follow-ups</h2><span>soonest first</span></div>`); });
   }
   function viewResults() {
     const tabs = [["interested", "Interested"], ["won", "Won"], ["done", "Closed"], ["stats", "Stats"]];
@@ -551,7 +551,7 @@
     buttons.forEach((b) => { b.disabled = true; });
     try {
       await rpc("app_update_lead", { p_id: l.id, p_outcome: outcome, p_note: note, p_callback_at: callbackAt || null });
-      const labels = { no_answer: "No answer: moved to Callbacks", sample_sent: "Sample sent: follow-up in 2 days", callback: "Callback saved", interested: "Interested - great! 🎉", won: "Client won! 🎉",
+      const labels = { no_answer: "No answer: try again tomorrow (Follow-ups)", sample_sent: "Sample sent: follow-up in 2 days", callback: "Callback saved", interested: "Interested - great! 🎉", won: "Client won! 🎉",
         not_interested: "Marked not interested", has_website: "Removed - they have a website", wrong_number: "Marked wrong number",
         do_not_call: "Won't be called again", reopen: "Moved back to the call list", note: "Note saved" };
       toast(labels[outcome] || "Saved");
