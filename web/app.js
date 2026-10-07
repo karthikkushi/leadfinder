@@ -271,13 +271,14 @@
       .then(() => { $("#view").insertAdjacentHTML("afterbegin", `<div class="section-title"><h2>Callbacks</h2><span>soonest first</span></div>`); });
   }
   function viewResults() {
-    const tabs = [["interested", "Interested"], ["won", "Won"], ["done", "Closed"]];
+    const tabs = [["interested", "Interested"], ["won", "Won"], ["done", "Closed"], ["stats", "Stats"]];
     const draw = () => {
       $("#view").innerHTML = `<div class="segmented">${tabs.map(([k, l]) => `<button data-r="${k}" class="${S.results === k ? "on" : ""}">${l}</button>`).join("")}</div><div id="res"></div>`;
       $(".segmented").addEventListener("click", (e) => { const b = e.target.closest("[data-r]"); if (b) { S.results = b.dataset.r; draw(); } });
       const empty = { interested: ["No interested shops yet", "Keep calling - the first yes is close."],
         won: ["No clients yet", "Mark a shop Won when they agree to a website."], done: ["Nothing closed yet", "Not interested, wrong numbers and shops with websites land here."] }[S.results];
       $("#res").innerHTML = skeleton(2);
+      if (S.results === "stats") return viewStats();
       rpc("app_list", { p_view: S.results, p_country: S.country, p_limit: 100 }).then((rows) => {
         if (S.tab !== "results") return;
         remember(rows);
@@ -285,6 +286,23 @@
       }).catch((e) => { $("#res").innerHTML = errorBox(e.message); });
     };
     draw();
+  }
+
+  function viewStats() {
+    const pct = (a, b) => (b ? `${Math.round((100 * a) / b)}%` : "-");
+    const TIER = { A: "Best", B: "Good", C: "OK", X: "Other" };
+    const table = (rows, name) => `<table class="stats"><thead><tr><th>${name}</th><th>Called</th><th>Answered</th><th>Interested</th><th>Samples</th><th>Won</th></tr></thead><tbody>${
+      rows.map((r) => `<tr><td>${esc(r.label)}</td><td>${r.called}</td><td>${r.answered}</td><td>${r.interested} <small>${pct(r.interested, r.called)}</small></td><td>${r.samples}</td><td>${r.won}</td></tr>`).join("")}</tbody></table>`;
+    rpc("app_funnel", { p_country: S.country }).then((f) => {
+      if (S.tab !== "results" || S.results !== "stats") return;
+      const t = f.total;
+      if (!t.called) return ($("#res").innerHTML = emptyBox("No calls yet", "Stats appear after the first calls are marked.", "trophy"));
+      $("#res").innerHTML = `<div class="tiles">${[["Called", t.called], ["Answered", t.answered], ["Interested", t.interested], ["Samples", t.samples], ["Won", t.won]]
+          .map(([k, v]) => `<div class="tile"><b>${v}</b><span>${k}</span></div>`).join("")}</div>
+        <h4>By shop type</h4>${table(f.by_type.map((r) => ({ ...r, label: CAT[r.key] || r.key })), "Type")}
+        <h4>By lead tier when called</h4>${table(f.by_tier.map((r) => ({ ...r, label: TIER[r.key] || r.key })), "Tier")}
+        <p class="muted small">Early numbers swing a lot. They start to mean something after about 50 calls.</p>`;
+    }).catch((e) => { $("#res").innerHTML = errorBox(e.message); });
   }
 
   // ---------- cards ----------
