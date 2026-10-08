@@ -328,7 +328,23 @@
     }
   }
   const OUTCOME = { no_answer: "No answer", callback: "Callback", interested: "Interested", won: "Won", not_interested: "Not interested",
-    wrong_number: "Wrong number", do_not_call: "Don't call", has_website: "Has website", sample_sent: "Sample sent" };
+    wrong_number: "Wrong number", do_not_call: "Don't call", has_website: "Has website", sample_sent: "Sample sent",
+    ask_owner: "Asking owner" };
+  // Interested shops, "will ask the owner" and samples sent come back after 2 days (the database sets callback_at),
+  // with a short follow-up message ready. The website comes first: no prices, and no link (they already have it).
+  const followable = (l) => l.stage === "interested" || (l.stage === "callback" && ["ask_owner", "sample_sent"].includes(l.last_outcome));
+  const followDue = (l) => followable(l) && l.callback_at && new Date(l.callback_at) <= new Date();
+  function followText(l) {
+    const who = store.get("lf_name") || "";
+    const co = store.get("lf_company") || "";
+    const hi = `Hi, this is ${who}${co ? ` from ${co}` : ""}.`;
+    return l.last_outcome === "ask_owner"
+      ? `${hi} I called ${l.name} a couple of days back about a website, and you said you'd check with the owner. ` +
+        `Did you get a chance? I can show them a free sample first, so they can see how it would look before deciding.`
+      : `${hi} Just checking if you had a chance to look at the website sample for ${l.name}. ` +
+        `We make it fully to your needs, so photos, colours, timings, anything can be changed. Shall we go ahead?`;
+  }
+  const waHref = (l, text) => `https://wa.me/${(l.phone_intl || "").replace(/\D/g, "")}?text=${encodeURIComponent(text)}`;
   function whyList(l, n) {
     const why = (l.reasons || []).filter((r) => !/^(No website|Their website|Website needs|Checked:)/.test(r)).slice(0, n);
     return why.length ? `<ul class="why">${why.map((r) => `<li>${icon("check")}<span>${esc(r)}</span></li>`).join("")}</ul>` : "";
@@ -337,9 +353,9 @@
     const [st, cls] = statusTag(l);
     const tier = { A: ["Best lead", "tA"], B: ["Good lead", "tB"] }[l.tier];
     const done = l.stage !== "new" || (l.call_count > 0 && S.tab === "today");
-    const cb = l.stage === "callback" && l.callback_at
+    const cb = ["callback", "interested"].includes(l.stage) && l.callback_at
       ? `<span class="tag outcome">${icon("clock", "i")} ${esc(new Date(l.callback_at).toLocaleString("en-IN", { weekday: "short", hour: "numeric", minute: "2-digit" }))}</span>` : "";
-    const last = l.last_outcome && l.stage !== "callback" ? `<span class="tag outcome">${esc(OUTCOME[l.last_outcome] || l.last_outcome)}</span>` : "";
+    const last = l.last_outcome && !cb ? `<span class="tag outcome">${esc(OUTCOME[l.last_outcome] || l.last_outcome)}</span>` : "";
     const digits = (l.phone_intl || "").replace(/\D/g, "");
     const kit = l.stage === "interested" && kitLink(l);
     return `
@@ -355,7 +371,8 @@
       ${l.brief?.headline ? `<p class="brief-head">${esc(l.brief.headline)}</p>` : whyList(l, 2)}
       <div class="card-actions">
         <a class="btn call" href="tel:${esc(l.phone_intl || "")}" data-call>${icon("phone")}Call</a>
-        ${kit ? `<a class="btn wa" target="_blank" rel="noopener" href="${esc(kit)}">${icon("wa")}Send sample</a>`
+        ${followDue(l) ? `<a class="btn wa" target="_blank" rel="noopener" href="${esc(waHref(l, followText(l)))}">${icon("wa")}Follow up</a>`
+          : kit ? `<a class="btn wa" target="_blank" rel="noopener" href="${esc(kit)}" data-sent>${icon("wa")}Send sample</a>`
           : `<a class="btn wa" target="_blank" rel="noopener" href="https://wa.me/${digits}?text=${encodeURIComponent(waText(l))}">${icon("wa")}WhatsApp</a>`}
         <button class="btn more" data-open aria-label="Details and result">${icon("more")}</button>
       </div>
@@ -366,8 +383,18 @@
     if (!art) return;
     const l = S.byId.get(art.dataset.id);
     if (e.target.closest("[data-call]")) { S.pendingCall = { id: l.id, at: Date.now() }; return; }
+    if (e.target.closest("[data-sent]")) return sampleSent(l);
     if (e.target.closest("[data-open]")) openLead(l);
   });
+  /** The sample kit opened in a new tab: note it, so the shop comes back for a follow-up in 2 days. */
+  async function sampleSent(l) {
+    try {
+      await rpc("app_update_lead", { p_id: l.id, p_outcome: "sample_sent" });
+      toast("Sample sent: follow-up in 2 days");
+    } catch (e) {
+      toast(e.message);
+    }
+  }
 
   // after a call, coming back to the app asks how it went
   document.addEventListener("visibilitychange", () => {
@@ -489,7 +516,8 @@
           <a class="btn call" href="tel:${esc(l.phone_intl || "")}" data-call-sheet>${icon("phone")}Call</a>
           <a class="btn wa" target="_blank" rel="noopener" href="https://wa.me/${digits}?text=${encodeURIComponent(waText(l))}">${icon("wa")}WhatsApp</a>
         </div>
-        ${kit ? `<a class="btn sample wide" target="_blank" rel="noopener" href="${esc(kit)}">${icon("wa")}<span>Send sample<small>Link, messages, picture and video, ready in one tap</small></span></a>` : ""}
+        ${followable(l) ? `<a class="btn sample wide" target="_blank" rel="noopener" href="${esc(waHref(l, followText(l)))}">${icon("wa")}<span>Follow up<small>A short WhatsApp message, ready to send</small></span></a>` : ""}
+        ${kit ? `<a class="btn sample wide" target="_blank" rel="noopener" href="${esc(kit)}" data-sent>${icon("wa")}<span>Send sample<small>Link, messages, picture and video, ready in one tap</small></span></a>` : ""}
         <div class="links">
           <a class="btn small ghost" target="_blank" rel="noopener" href="${esc(maps)}">${icon("map")}Map</a>
           ${site ? `<a class="btn small ghost" target="_blank" rel="noopener" href="${esc(site)}">${icon("globe")}${esc(siteLabel)}</a>` : ""}
@@ -504,6 +532,7 @@
             <button data-o="callback">${icon("clock")}Callback</button>
             <button data-o="sample_sent">Sample sent</button>
             <button data-o="interested" class="good">Interested</button>
+            <button data-o="ask_owner">${icon("clock")}Will ask owner</button>
             <button data-o="won" class="good">${icon("trophy")}Won</button>
             <button data-o="not_interested" class="quiet">Not interested</button>
             <button data-o="has_website" class="quiet">Has website</button>
@@ -522,6 +551,7 @@
     sheet.onclick = async (e) => {
       if (e.target === sheet || e.target.closest("[data-close]")) return sheet.close();
       if (e.target.closest("[data-call-sheet]")) { S.pendingCall = { id: l.id, at: Date.now() }; return; }
+      if (e.target.closest("[data-sent]")) return sampleSent(l);
       const b = e.target.closest("[data-o]");
       if (b) {
         if (b.dataset.o === "callback") return showCallback();
@@ -551,7 +581,7 @@
     buttons.forEach((b) => { b.disabled = true; });
     try {
       await rpc("app_update_lead", { p_id: l.id, p_outcome: outcome, p_note: note, p_callback_at: callbackAt || null });
-      const labels = { no_answer: "No answer: try again tomorrow (Follow-ups)", sample_sent: "Sample sent: follow-up in 2 days", callback: "Callback saved", interested: "Interested - great! 🎉", won: "Client won! 🎉",
+      const labels = { no_answer: "No answer: try again tomorrow (Follow-ups)", sample_sent: "Sample sent: follow-up in 2 days", callback: "Callback saved", interested: "Interested - follow-up in 2 days 🎉", ask_owner: "Asking owner: follow-up in 2 days", won: "Client won! 🎉",
         not_interested: "Marked not interested", has_website: "Removed - they have a website", wrong_number: "Marked wrong number",
         do_not_call: "Won't be called again", reopen: "Moved back to the call list", note: "Note saved" };
       toast(labels[outcome] || "Saved");
