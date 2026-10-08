@@ -2,6 +2,8 @@ name: Morning lead run
 
 on:
   schedule:
+    # Main start: the database's own timer starts this run at 07:45 India time (pg_cron job leadfinder-morning),
+    # because GitHub's scheduler ran hours late. These GitHub times stay as backups.
     # Odd minutes on purpose: GitHub is busiest at :00 and :30 and drops scheduled runs then.
     # The database picks today's 10 leads itself at 08:45 India time even if every run here is dropped.
     - cron: "19 2 * * *"   # 07:49 India time, every day (email about 8:40 AM)
@@ -16,6 +18,9 @@ on:
       send_email:
         description: "Send the lead email at the end (yes/no)"
         default: "yes"
+      daily:
+        description: "Started by the database's daily timer (skips if today's email already went out)"
+        default: "no"
 
 concurrency:
   group: leadfinder
@@ -50,7 +55,7 @@ jobs:
         id: guard
         run: |
           sent=$(.venv/bin/python -m leadfinder sent-today 2>/dev/null | tail -1 || echo 0)
-          if [ "${{ github.event_name }}" = "schedule" ] && [ "${sent:-0}" -gt 0 ]; then
+          if { [ "${{ github.event_name }}" = "schedule" ] || [ "${{ inputs.daily }}" = "yes" ]; } && [ "${sent:-0}" -gt 0 ]; then
             echo "Today's email already went out ($sent leads) - this backup run stops here."
             echo "skip=true" >> "$GITHUB_OUTPUT"
           fi
