@@ -372,7 +372,7 @@
       <div class="card-actions">
         <a class="btn call" href="tel:${esc(l.phone_intl || "")}" data-call>${icon("phone")}Call</a>
         ${followDue(l) ? `<a class="btn wa" target="_blank" rel="noopener" href="${esc(waHref(l, followText(l)))}">${icon("wa")}Follow up</a>`
-          : kit ? `<a class="btn wa" target="_blank" rel="noopener" href="${esc(kit)}" data-sent>${icon("wa")}Send sample</a>`
+          : kit ? `<a class="btn wa" target="_blank" rel="noopener" href="${esc(kit)}">${icon("wa")}Send sample</a>`
           : `<a class="btn wa" target="_blank" rel="noopener" href="https://wa.me/${digits}?text=${encodeURIComponent(waText(l))}">${icon("wa")}WhatsApp</a>`}
         <button class="btn more" data-open aria-label="Details and result">${icon("more")}</button>
       </div>
@@ -383,18 +383,8 @@
     if (!art) return;
     const l = S.byId.get(art.dataset.id);
     if (e.target.closest("[data-call]")) { S.pendingCall = { id: l.id, at: Date.now() }; return; }
-    if (e.target.closest("[data-sent]")) return sampleSent(l);
     if (e.target.closest("[data-open]")) openLead(l);
   });
-  /** The sample kit opened in a new tab: note it, so the shop comes back for a follow-up in 2 days. */
-  async function sampleSent(l) {
-    try {
-      await rpc("app_update_lead", { p_id: l.id, p_outcome: "sample_sent" });
-      toast("Sample sent: follow-up in 2 days");
-    } catch (e) {
-      toast(e.message);
-    }
-  }
 
   // after a call, coming back to the app asks how it went
   document.addEventListener("visibilitychange", () => {
@@ -517,7 +507,7 @@
           <a class="btn wa" target="_blank" rel="noopener" href="https://wa.me/${digits}?text=${encodeURIComponent(waText(l))}">${icon("wa")}WhatsApp</a>
         </div>
         ${followable(l) ? `<a class="btn sample wide" target="_blank" rel="noopener" href="${esc(waHref(l, followText(l)))}">${icon("wa")}<span>Follow up<small>A short WhatsApp message, ready to send</small></span></a>` : ""}
-        ${kit ? `<a class="btn sample wide" target="_blank" rel="noopener" href="${esc(kit)}" data-sent>${icon("wa")}<span>Send sample<small>Link, messages, picture and video, ready in one tap</small></span></a>` : ""}
+        ${kit ? `<a class="btn sample wide" target="_blank" rel="noopener" href="${esc(kit)}">${icon("wa")}<span>Send sample<small>Link, messages, picture and video, ready in one tap</small></span></a>` : ""}
         <div class="links">
           <a class="btn small ghost" target="_blank" rel="noopener" href="${esc(maps)}">${icon("map")}Map</a>
           ${site ? `<a class="btn small ghost" target="_blank" rel="noopener" href="${esc(site)}">${icon("globe")}${esc(siteLabel)}</a>` : ""}
@@ -551,7 +541,6 @@
     sheet.onclick = async (e) => {
       if (e.target === sheet || e.target.closest("[data-close]")) return sheet.close();
       if (e.target.closest("[data-call-sheet]")) { S.pendingCall = { id: l.id, at: Date.now() }; return; }
-      if (e.target.closest("[data-sent]")) return sampleSent(l);
       const b = e.target.closest("[data-o]");
       if (b) {
         if (b.dataset.o === "callback") return showCallback();
