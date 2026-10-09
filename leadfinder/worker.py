@@ -52,13 +52,15 @@ CHECK_MIX = itertools.cycle([c.strip().upper() for c in os.environ.get("CHECK_MI
 def check_some(db: DB, searcher: verify.Searcher, deadline: float) -> int:
     country = next(CHECK_MIX)
     no_site = db.next_checks(12, 1, country)    # needs web searches: done one by one
-    has_site = db.next_checks(32, 2, country)   # just opens the website: done in parallel
+    # Just opens the listed website, 20 at a time (~30 s for 200), hidden behind the searches. Two in three listed
+    # sites turn out dead or weak, the shops most likely to say yes, so check as many as the database hands out.
+    has_site = db.next_checks(200, 2, country)
     if not no_site and not has_site:  # nothing left for that country: take any
-        no_site, has_site = db.next_checks(12, 1), db.next_checks(32, 2)
+        no_site, has_site = db.next_checks(12, 1), db.next_checks(200, 2)
     if not no_site and not has_site:
         return 0
     results = []
-    with ThreadPoolExecutor(8) as pool:
+    with ThreadPoolExecutor(20) as pool:
         futures = [pool.submit(_safe_check, lead, searcher) for lead in has_site]
         for lead in no_site:
             if time.monotonic() > deadline:
