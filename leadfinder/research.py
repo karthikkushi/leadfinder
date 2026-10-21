@@ -128,7 +128,6 @@ def deep_audit(url: str, lead: dict | None = None) -> dict:
     city_on_page = any(c in tlow for c in CITY_NAMES.get(city.lower(), (city.lower(),))) if city else None
     reviews = next((w for w in REVIEW_WORDS if w in tlow), None)
     team = next((w for w in TEAM_WORDS if w in tlow), None)
-    prices = bool(re.search(r"(₹|rs\.?\s?\d|inr\s?\d|\$\s?\d|price list|pricing|packages?)", tlow))
     socials = sorted({l for l in links if link_kind(l) == "social"})[:6]
     responsive = any(h in low for h in RESPONSIVE_HINTS)
     viewport = bool(re.search(r"<meta[^>]+name=[\"']?viewport", low))
