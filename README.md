@@ -2,7 +2,7 @@
 
 **What:** AI agents that find local shops with no website or a weak one, grade their site, research the shop and write a short sales brief; a phone app shows the day's best leads to call.
 **For:** web agencies and freelancers who sell websites to local businesses (built for my own agency, Kalvio Build).
-**Run:** `python3 -m venv .venv && .venv/bin/pip install -r requirements.txt`, then `.venv/bin/python -m leadfinder audit https://example.com` grades any website. The full pipeline also needs a Supabase project (see "Not done yet").
+**Run:** `python3 -m venv .venv && .venv/bin/pip install -r requirements.txt`, then `.venv/bin/python -m leadfinder audit https://example.com` grades any website. The full pipeline also needs a Supabase project (see "Database").
 
 Live app: <https://karthikkushi.github.io/leadfinder/> (access code required).
 
@@ -49,9 +49,23 @@ Settings go in `.env` (copy `.env.example`).
 Checks: `.venv/bin/pip install pytest pyflakes`, then `.venv/bin/python -m pytest` and
 `.venv/bin/python -m pyflakes leadfinder tests`.
 
+## Database
+
+`supabase/migrations/` holds the 34 migrations that built the live database, in order, copied from it. Replaying them
+on an empty Postgres gives the same tables and functions as the live one. For a new Supabase project, run them in
+order (Supabase CLI: `supabase link`, then `supabase db push`; or paste each into the SQL editor). Every call needs an
+access code, so add the first admin and the agents' code by hand:
+
+```sql
+insert into public.team (name, role, code_hash) values
+  ('Me', 'admin', encode(extensions.digest('<a long admin code>', 'sha256'), 'hex')),
+  ('Agents', 'worker', encode(extensions.digest('<a long worker code>', 'sha256'), 'hex'));
+```
+
+The morning trigger needs a fine-grained GitHub key, saved once with `admin_set_github_token`. `supabase/follow_ups.sql`
+explains why the follow-up and ranking rules changed (the same change as the two `follow_ups` migrations).
+
 ## Not done yet
 
-- The database setup is not in this repo: the tables and the 21 functions the agents call were made in the Supabase
-  dashboard (only `supabase/follow_ups.sql` is here), so a new Supabase project can't be set up from the repo yet.
 - The morning email covers India only (`REPORT_COUNTRIES=IN`); US shops are found and checked but not emailed.
 - The `.command` files are macOS double-click helpers for my own setup.
